@@ -1,7 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { adminApi, catalogApi } from "@/lib/api";
+import {
+  AdminProductImageUpload,
+  useAdminProductImages,
+} from "@/components/admin/AdminProductImageUpload";
 import {
   LIMITS,
   decimalOnly,
@@ -38,10 +42,16 @@ export default function AdminProductsPage() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-  const [images, setImages] = useState<FileList | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [deactivatingId, setDeactivatingId] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const {
+    items: stagedImages,
+    addFiles,
+    remove: removeImage,
+    readyPayload,
+    clearLocal: clearStagedImages,
+    hasUploading,
+  } = useAdminProductImages();
 
   const [form, setForm] = useState({
     name: "",
@@ -51,6 +61,9 @@ export default function AdminProductsPage() {
     price: "",
     discountPrice: "",
     stock: "0",
+    lengthCm: "",
+    breadthCm: "",
+    heightCm: "",
     tags: "",
     isFeatured: false,
   });
@@ -97,6 +110,9 @@ export default function AdminProductsPage() {
         price: form.price,
         discountPrice: form.discountPrice,
         stock: form.stock,
+        lengthCm: form.lengthCm,
+        breadthCm: form.breadthCm,
+        heightCm: form.heightCm,
       },
       {
         name: validateRequired("Name", 160),
@@ -104,6 +120,9 @@ export default function AdminProductsPage() {
         price: validateAmount("Price", { min: 1 }),
         discountPrice: validateAmount("Discount price", { min: 0, required: false }),
         stock: validateInteger("Stock", { min: 0, max: LIMITS.stockMax }),
+        lengthCm: validateAmount("Length", { min: 0, required: false }),
+        breadthCm: validateAmount("Breadth", { min: 0, required: false }),
+        heightCm: validateAmount("Height", { min: 0, required: false }),
       },
     ) as Record<string, string>;
     if (form.discountPrice && Number(form.discountPrice) >= Number(form.price)) {
@@ -112,6 +131,11 @@ export default function AdminProductsPage() {
     setFieldErrors(found);
     if (Object.keys(found).length) {
       setError("Fix the highlighted fields");
+      return;
+    }
+
+    if (hasUploading) {
+      setError("Wait for image uploads to finish");
       return;
     }
 
@@ -129,20 +153,31 @@ export default function AdminProductsPage() {
       "inventory",
       JSON.stringify({ stock: Number(form.stock) || 0 })
     );
+
+    const dimensions: Record<string, number> = {};
+    if (form.lengthCm) dimensions.lengthCm = Number(form.lengthCm);
+    if (form.breadthCm) dimensions.breadthCm = Number(form.breadthCm);
+    if (form.heightCm) dimensions.heightCm = Number(form.heightCm);
+    if (Object.keys(dimensions).length) {
+      formData.append("variants", JSON.stringify([{ label: "Default", dimensions }]));
+    }
+
     const tags = form.tags
       .split(",")
       .map((t) => t.trim())
       .filter(Boolean);
     if (tags.length) formData.append("tags", JSON.stringify(tags));
 
-    if (images?.length) {
-      Array.from(images).forEach((file) => formData.append("images", file));
+    const imagePayload = readyPayload();
+    if (imagePayload.length) {
+      formData.append("images", JSON.stringify(imagePayload));
     }
 
     setSubmitting(true);
     try {
       await adminApi.createProduct(formData);
       setMessage("Product created.");
+      clearStagedImages();
       setForm({
         name: "",
         description: "",
@@ -151,13 +186,15 @@ export default function AdminProductsPage() {
         price: "",
         discountPrice: "",
         stock: "0",
+        lengthCm: "",
+        breadthCm: "",
+        heightCm: "",
         tags: "",
         isFeatured: false,
       });
-      setImages(null);
-      if (fileInputRef.current) fileInputRef.current.value = "";
       await load();
     } catch (err) {
+      clearStagedImages();
       setError(err instanceof Error ? err.message : "Could not create product");
     } finally {
       setSubmitting(false);
@@ -182,7 +219,7 @@ export default function AdminProductsPage() {
       <section className="rounded-lg border border-line bg-cream p-6">
         <h2 className="text-lg font-semibold">Add product</h2>
         <p className="mt-1 text-xs text-ink-soft">
-          Upload images with the product — no image URLs needed.
+          Images upload immediately via the admin API; previews show before you create the product.
         </p>
         <form onSubmit={onCreate} className="mt-4 flex flex-col gap-3">
           <input
@@ -245,23 +282,48 @@ export default function AdminProductsPage() {
             onChange={(e) => setForm((f) => ({ ...f, stock: digitsOnly(e.target.value) }))}
             className={`rounded-md border bg-white px-3 py-2 text-sm ${fieldErrors.stock ? "border-red-400" : "border-line"}`}
           />
+          <p className="text-xs font-medium text-ink">Package size (cm) — for shipping</p>
+          <div className="grid grid-cols-3 gap-2">
+            <input
+              type="number"
+              min={0}
+              step="0.1"
+              placeholder="Length (L)"
+              value={form.lengthCm}
+              onChange={(e) => setForm((f) => ({ ...f, lengthCm: decimalOnly(e.target.value) }))}
+              className={`rounded-md border bg-white px-3 py-2 text-sm ${fieldErrors.lengthCm ? "border-red-400" : "border-line"}`}
+            />
+            <input
+              type="number"
+              min={0}
+              step="0.1"
+              placeholder="Breadth (B)"
+              value={form.breadthCm}
+              onChange={(e) => setForm((f) => ({ ...f, breadthCm: decimalOnly(e.target.value) }))}
+              className={`rounded-md border bg-white px-3 py-2 text-sm ${fieldErrors.breadthCm ? "border-red-400" : "border-line"}`}
+            />
+            <input
+              type="number"
+              min={0}
+              step="0.1"
+              placeholder="Height (H)"
+              value={form.heightCm}
+              onChange={(e) => setForm((f) => ({ ...f, heightCm: decimalOnly(e.target.value) }))}
+              className={`rounded-md border bg-white px-3 py-2 text-sm ${fieldErrors.heightCm ? "border-red-400" : "border-line"}`}
+            />
+          </div>
           <input
             placeholder="Tags (comma separated)"
             value={form.tags}
             onChange={(e) => setForm((f) => ({ ...f, tags: e.target.value }))}
             className="rounded-md border border-line bg-white px-3 py-2 text-sm"
           />
-          <label className="text-sm">
-            <span className="font-medium">Images</span>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              multiple
-              onChange={(e) => setImages(e.target.files)}
-              className="mt-1 block w-full text-sm"
-            />
-          </label>
+          <AdminProductImageUpload
+            items={stagedImages}
+            onAddFiles={addFiles}
+            onRemove={removeImage}
+            disabled={submitting}
+          />
           <label className="flex items-center gap-2 text-sm">
             <input
               type="checkbox"
@@ -274,7 +336,7 @@ export default function AdminProductsPage() {
           {error && <p className="text-sm text-accent-700">{error}</p>}
           <button
             type="submit"
-            disabled={submitting || loading}
+            disabled={submitting || loading || hasUploading}
             className="rounded-md gradient-accent px-4 py-2.5 text-sm font-bold text-cream disabled:opacity-60"
           >
             {submitting ? "Creating…" : "Create product"}

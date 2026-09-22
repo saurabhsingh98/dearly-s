@@ -5,6 +5,10 @@ import Link from "next/link";
 import { adminApi, type AdminCategory } from "@/lib/api";
 import { LIMITS, decimalOnly, digitsOnly, validateAll, validateAmount, validateInteger, validateRequired } from "@/lib/validation";
 import { Button } from "@/components/ui/Button";
+import {
+  AdminProductImageUpload,
+  useAdminProductImages,
+} from "@/components/admin/AdminProductImageUpload";
 
 function parentId(category: AdminCategory): string | null {
   if (!category.parentCategory) return null;
@@ -22,12 +26,22 @@ export default function AdminNewProductPage() {
   const [price, setPrice] = useState("");
   const [discountPrice, setDiscountPrice] = useState("");
   const [stock, setStock] = useState("0");
+  const [lengthCm, setLengthCm] = useState("");
+  const [breadthCm, setBreadthCm] = useState("");
+  const [heightCm, setHeightCm] = useState("");
   const [isFeatured, setIsFeatured] = useState(false);
-  const [images, setImages] = useState<FileList | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [success, setSuccess] = useState<string | null>(null);
+  const {
+    items: stagedImages,
+    addFiles,
+    remove: removeImage,
+    readyPayload,
+    clearLocal: clearStagedImages,
+    hasUploading,
+  } = useAdminProductImages();
 
   useEffect(() => {
     let cancelled = false;
@@ -64,12 +78,15 @@ export default function AdminNewProductPage() {
     e.preventDefault();
 
     const found = validateAll(
-      { name, price, discountPrice, stock },
+      { name, price, discountPrice, stock, lengthCm, breadthCm, heightCm },
       {
         name: validateRequired("Name", 160),
         price: validateAmount("Price", { min: 1 }),
         discountPrice: validateAmount("Discount price", { min: 0, required: false }),
         stock: validateInteger("Stock", { min: 0, max: LIMITS.stockMax }),
+        lengthCm: validateAmount("Length", { min: 0, required: false }),
+        breadthCm: validateAmount("Breadth", { min: 0, required: false }),
+        heightCm: validateAmount("Height", { min: 0, required: false }),
       },
     ) as Record<string, string>;
     if (discountPrice && Number(discountPrice) >= Number(price)) {
@@ -88,6 +105,11 @@ export default function AdminNewProductPage() {
       return;
     }
 
+    if (hasUploading) {
+      setError("Wait for image uploads to finish");
+      return;
+    }
+
     const formData = new FormData();
     formData.append("name", name.trim());
     formData.append("category", categoryId);
@@ -101,24 +123,37 @@ export default function AdminNewProductPage() {
       JSON.stringify({ stock: Number(stock) || 0 })
     );
 
-    if (images?.length) {
-      Array.from(images).forEach((file) => formData.append("images", file));
+    const dimensions: Record<string, number> = {};
+    if (lengthCm) dimensions.lengthCm = Number(lengthCm);
+    if (breadthCm) dimensions.breadthCm = Number(breadthCm);
+    if (heightCm) dimensions.heightCm = Number(heightCm);
+    if (Object.keys(dimensions).length) {
+      formData.append("variants", JSON.stringify([{ label: "Default", dimensions }]));
+    }
+
+    const imagePayload = readyPayload();
+    if (imagePayload.length) {
+      formData.append("images", JSON.stringify(imagePayload));
     }
 
     setSubmitting(true);
     try {
       const res = await adminApi.createProduct(formData);
       setSuccess(res.message || "Product created");
+      clearStagedImages();
       setName("");
       setDescription("");
       setPrice("");
       setDiscountPrice("");
       setStock("0");
+      setLengthCm("");
+      setBreadthCm("");
+      setHeightCm("");
       setIsFeatured(false);
       setCategoryId("");
       setSubCategoryId("");
-      setImages(null);
     } catch (err) {
+      clearStagedImages();
       setError(err instanceof Error ? err.message : "Could not create product");
     } finally {
       setSubmitting(false);
@@ -133,7 +168,7 @@ export default function AdminNewProductPage() {
         </Link>
         <h1 className="mt-2 font-display text-3xl text-ink">Add product</h1>
         <p className="mt-1 text-sm text-ink/65">
-          Images upload with the product in one request. Categories load from the admin API.
+          Images upload to Cloudinary as you pick them; remove any preview to delete it from the server.
         </p>
       </div>
 
@@ -254,16 +289,56 @@ export default function AdminNewProductPage() {
           </label>
         </div>
 
-        <label className="block text-sm font-medium text-ink">
-          Images
-          <input
-            type="file"
-            accept="image/*"
-            multiple
-            onChange={(e) => setImages(e.target.files)}
-            className="mt-1 block w-full text-sm"
-          />
-        </label>
+        <fieldset className="rounded-xs border border-ink/10 px-4 py-4">
+          <legend className="px-1 text-sm font-medium text-ink">
+            Variant package size (cm)
+          </legend>
+          <p className="mb-3 text-xs text-ink/60">
+            Optional length, breadth, and height for shipping. Stored on the default variant.
+          </p>
+          <div className="grid gap-4 sm:grid-cols-3">
+            <label className="block text-sm font-medium text-ink">
+              Length (L)
+              <input
+                type="number"
+                min="0"
+                step="0.1"
+                value={lengthCm}
+                onChange={(e) => setLengthCm(decimalOnly(e.target.value))}
+                className="mt-1 w-full rounded-xs border border-ink/15 bg-white px-3 py-2 text-sm"
+              />
+            </label>
+            <label className="block text-sm font-medium text-ink">
+              Breadth (B)
+              <input
+                type="number"
+                min="0"
+                step="0.1"
+                value={breadthCm}
+                onChange={(e) => setBreadthCm(decimalOnly(e.target.value))}
+                className="mt-1 w-full rounded-xs border border-ink/15 bg-white px-3 py-2 text-sm"
+              />
+            </label>
+            <label className="block text-sm font-medium text-ink">
+              Height (H)
+              <input
+                type="number"
+                min="0"
+                step="0.1"
+                value={heightCm}
+                onChange={(e) => setHeightCm(decimalOnly(e.target.value))}
+                className="mt-1 w-full rounded-xs border border-ink/15 bg-white px-3 py-2 text-sm"
+              />
+            </label>
+          </div>
+        </fieldset>
+
+        <AdminProductImageUpload
+          items={stagedImages}
+          onAddFiles={addFiles}
+          onRemove={removeImage}
+          disabled={submitting}
+        />
 
         <label className="flex items-center gap-2 text-sm text-ink">
           <input
@@ -274,7 +349,7 @@ export default function AdminNewProductPage() {
           Featured product
         </label>
 
-        <Button type="submit" disabled={submitting || loadingCategories}>
+        <Button type="submit" disabled={submitting || loadingCategories || hasUploading}>
           {submitting ? "Creating…" : "Create product"}
         </Button>
       </form>

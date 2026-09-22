@@ -86,6 +86,12 @@ export type ApiCategoryTreeNode = ApiCategory & {
   children?: ApiCategoryTreeNode[];
 };
 
+export type ApiProductVariantDimensions = {
+  lengthCm?: number;
+  breadthCm?: number;
+  heightCm?: number;
+};
+
 export type ApiProductVariant = {
   _id?: Id;
   label?: string;
@@ -94,6 +100,7 @@ export type ApiProductVariant = {
   price?: number;
   stock?: number;
   reservedStock?: number;
+  dimensions?: ApiProductVariantDimensions;
   images?: ApiImage[];
 };
 

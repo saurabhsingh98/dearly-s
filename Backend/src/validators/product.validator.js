@@ -30,6 +30,11 @@ const variantSchema = Joi.object({
   priceDelta: Joi.number().min(0),
   price: Joi.number().min(0),
   stock: Joi.number().min(0),
+  dimensions: Joi.object({
+    lengthCm: Joi.number().min(0).optional(),
+    breadthCm: Joi.number().min(0).optional(),
+    heightCm: Joi.number().min(0).optional(),
+  }).optional(),
   images: Joi.array().items(imageSchema),
 });
 

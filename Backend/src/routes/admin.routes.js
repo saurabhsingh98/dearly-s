@@ -27,6 +27,7 @@ router.get('/dashboard', adminController.getDashboardStats);
 router.get('/users', adminController.listUsers);
 
 router.post('/uploads', writeLimiter, imageUpload.single('image'), uploadController.uploadImage);
+router.delete('/uploads', writeLimiter, uploadController.deleteUpload);
 
 router.get('/categories', categoryController.listCategories);
 router.post('/categories', categoryController.createCategory);

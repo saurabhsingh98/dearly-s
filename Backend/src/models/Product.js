@@ -40,6 +40,11 @@ const variantSchema = new mongoose.Schema(
     price: money(),
     stock: { type: Number, default: 0, min: 0 },
     reservedStock: { type: Number, default: 0, min: 0 },
+    dimensions: {
+      lengthCm: { type: Number, min: 0 },
+      breadthCm: { type: Number, min: 0 },
+      heightCm: { type: Number, min: 0 },
+    },
     images: [imageSchema],
   },
   { _id: true }

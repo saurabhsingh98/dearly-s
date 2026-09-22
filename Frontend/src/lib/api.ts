@@ -209,16 +209,7 @@ export type AdminCoupon = {
   isActive: boolean;
 };
 
-export type AdminOrder = {
-  _id: string;
-  orderStatus: string;
-  paymentStatus: string;
-  totalAmount: number;
-  createdAt: string;
-  couponCode?: string;
-  userId?: { firstName?: string; lastName?: string; email?: string };
-  shippingAddress?: { fullName?: string; city?: string };
-};
+export type AdminOrder = ApiOrder;
 
 export const adminApi = {
   dashboard: () =>
@@ -229,6 +220,12 @@ export const adminApi = {
   /** `multipart/form-data` with a single `image` field; 503 if Cloudinary is unset. */
   uploadImage: (formData: FormData) =>
     apiPost<ApiUpload>(API_PATHS.admin.uploads, formData),
+  uploadProductImage: (formData: FormData) =>
+    apiPost<ApiUpload>(withQuery(API_PATHS.admin.uploads, "purpose=product"), formData),
+  deleteUpload: (publicId: string) =>
+    apiDelete<{ publicId: string }>(
+      withQuery(API_PATHS.admin.uploads, buildQuery({ publicId })),
+    ),
 
   orders: (query: string | QueryParams = "") =>
     apiGet<{

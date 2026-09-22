@@ -271,6 +271,7 @@ const uploadImages = async (files = []) => {
 };
 
 const createProduct = async (payload, files = []) => {
+  const payloadImages = Array.isArray(payload.images) ? payload.images : [];
   let uploadedImages = [];
   try {
     const category = await Category.findById(payload.category);
@@ -291,16 +292,18 @@ const createProduct = async (payload, files = []) => {
 
     const slug = payload.slug ? slugify(payload.slug) : await ensureUniqueSlug(payload.name);
     uploadedImages = await uploadImages(files);
+    const images = uploadedImages.length ? uploadedImages : payloadImages;
 
     const product = await Product.create({
       ...payload,
       slug,
-      images: uploadedImages.length ? uploadedImages : payload.images || [],
+      images,
     });
 
     return product;
   } catch (error) {
     await rollbackUploadedImages(uploadedImages);
+    await rollbackUploadedImages(payloadImages);
     throw error;
   }
 };
