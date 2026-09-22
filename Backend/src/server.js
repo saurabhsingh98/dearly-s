@@ -5,6 +5,7 @@ const { releaseExpiredReservations } = require('./services/reservation.service')
 const logger = require('./config/logger');
 
 const RESERVATION_SWEEP_MS = 5 * 60 * 1000;
+const HEALTH_PING_MS = 14 * 60 * 1000;
 
 const startServer = async () => {
   try {
@@ -14,6 +15,14 @@ const startServer = async () => {
     app.listen(env.port, () => {
       logger.info(`Server running on port ${env.port} (${env.nodeEnv})`);
     });
+
+    const healthUrl = `http://127.0.0.1:${env.port}/`;
+    const pingHealth = () => {
+      fetch(healthUrl).catch((error) =>
+        logger.warn({ err: error }, 'Health self-ping failed')
+      );
+    };
+    setInterval(pingHealth, HEALTH_PING_MS).unref();
 
     setInterval(() => {
       releaseExpiredReservations().catch((error) =>
