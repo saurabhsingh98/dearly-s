@@ -34,9 +34,22 @@ const recordStatus = (order, status, { by, note } = {}) => {
   order.statusHistory.push({ status, at: new Date(), by, note });
 };
 
+const orderHasPersonalizedItems = (order) =>
+  (order.items || []).some((item) => (item.customization || []).length > 0);
+
+const assertOrderCanBeCancelledOrRefunded = (order) => {
+  if (!orderHasPersonalizedItems(order)) return;
+  const error = new Error(
+    'Orders containing personalised items cannot be cancelled or refunded online'
+  );
+  error.statusCode = 400;
+  throw error;
+};
+
 // Shared by customer cancellation and the admin transition so stock and refund
 // state can never be skipped by going through the admin path.
 const applyCancellation = async (order, session, actor) => {
+  assertOrderCanBeCancelledOrRefunded(order);
   const wasPaid = order.paymentStatus === PAYMENT_STATUS.PAID;
 
   for (const item of order.items) {

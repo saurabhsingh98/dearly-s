@@ -5,7 +5,7 @@ import { useEffect } from "react";
 import { ProductArt } from "@/components/ui/ProductArt";
 import { QuantityStepper } from "@/components/ui/QuantityStepper";
 import { freeShippingThreshold } from "@/data/site";
-import { useCart } from "@/lib/cart";
+import { useCart, cartLineKey } from "@/lib/cart";
 import { formatMoney } from "@/lib/money";
 import { Motif } from "@/components/ui/Motif";
 import { X } from "lucide-react";
@@ -80,7 +80,7 @@ export function CartDrawer() {
             <ul className="flex flex-col gap-4">
               {lines.map((line) => (
                 <li
-                  key={`${line.productId}-${line.variantId ?? "base"}`}
+                  key={cartLineKey(line)}
                   className="flex gap-4 rounded-md border border-line bg-white p-3"
                 >
                   <Link href={`/products/${line.product.slug}`} onClick={closeDrawer} className="shrink-0">
@@ -101,17 +101,27 @@ export function CartDrawer() {
                     {line.variant && (
                       <span className="text-2xs text-ink-faint">{line.variant.label}</span>
                     )}
+                    {line.customization?.length ? (
+                      <ul className="mt-1 space-y-0.5 text-2xs text-ink-soft">
+                        {line.customization.map((c) => (
+                          <li key={c.name}>
+                            <span className="font-semibold text-ink-faint">{c.name}:</span>{" "}
+                            {c.imageUrl || c.value}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
                     <span className="text-sm font-bold">{formatMoney(line.unitPrice)}</span>
                     <div className="mt-auto flex items-center justify-between gap-2">
                       <QuantityStepper
                         size="sm"
                         value={line.quantity}
                         max={line.product.stock}
-                        onChange={(q) => setQty(line.productId, q, line.variantId)}
+                        onChange={(q) => setQty(line.productId, q, line.variantId, line.customization)}
                       />
                       <button
                         type="button"
-                        onClick={() => remove(line.productId, line.variantId)}
+                        onClick={() => remove(line.productId, line.variantId, line.customization)}
                         className="text-2xs text-ink-faint underline underline-offset-2 hover:text-accent-600"
                       >
                         Remove

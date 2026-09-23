@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useCallback, useEffect, useState } from "react";
 import { adminApi, type AdminOrder } from "@/lib/api";
 import { formatInr, ORDER_STATUSES, PAYMENT_STATUSES } from "@/lib/admin-constants";
+import { orderHasPersonalization, ORDER_FINAL_STATUSES } from "@/lib/order-policy";
 import type { ApiOrderItem } from "@/lib/api-types";
 
 function formatDate(iso?: string) {
@@ -99,6 +100,7 @@ function OrderLineItems({ items }: { items: ApiOrderItem[] }) {
                       )}
                     </li>
                   ))}
+                  <li className="pt-1 text-2xs font-medium text-amber-900">Final sale item</li>
                 </ul>
               ) : null}
             </div>
@@ -242,6 +244,7 @@ export default function AdminOrdersPage() {
           orders.map((o) => {
             const expanded = expandedId === o._id;
             const email = customerEmail(o);
+            const personalized = orderHasPersonalization(o);
             return (
               <article
                 key={o._id}
@@ -255,6 +258,11 @@ export default function AdminOrdersPage() {
                     <p className="text-xs text-ink-faint">{formatDate(o.createdAt)}</p>
                     <p className="mt-1 text-ink">{customerName(o)}</p>
                     {email && <p className="text-xs text-ink-faint">{email}</p>}
+                    {personalized && (
+                      <p className="mt-1 text-2xs font-semibold text-amber-900">
+                        Final sale — cannot cancel or refund online
+                      </p>
+                    )}
                   </div>
                   <div className="flex flex-col items-end gap-2">
                     <p className="text-lg font-semibold tabular-nums">{formatInr(o.totalAmount)}</p>
@@ -265,11 +273,16 @@ export default function AdminOrdersPage() {
                       onChange={(e) => changeStatus(o._id, e.target.value)}
                       className="max-w-[200px] rounded border border-line px-2 py-1 text-xs"
                     >
-                      {ORDER_STATUSES.map((s) => (
-                        <option key={s} value={s}>
-                          {s.replace(/_/g, " ")}
-                        </option>
-                      ))}
+                      {ORDER_STATUSES.map((s) => {
+                        const blockFinal =
+                          personalized && ORDER_FINAL_STATUSES.has(s) && s !== o.orderStatus;
+                        return (
+                          <option key={s} value={s} disabled={blockFinal}>
+                            {s.replace(/_/g, " ")}
+                            {blockFinal ? " (not for personalised orders)" : ""}
+                          </option>
+                        );
+                      })}
                     </select>
                   </div>
                 </div>

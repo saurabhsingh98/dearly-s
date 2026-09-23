@@ -2,23 +2,27 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ProductArt } from "@/components/ui/ProductArt";
 import { Stars } from "@/components/ui/Stars";
 import { useCart } from "@/lib/cart";
 import { discountPercent, formatMoney } from "@/lib/money";
+import { productRequiresCustomization } from "@/lib/product-customization";
 import { useTaxonomy } from "@/components/taxonomy/TaxonomyProvider";
 import type { Product } from "@/lib/types";
 import { Motif } from "@/components/ui/Motif";
 import { Heart } from "lucide-react";
 
 export function ProductCard({ product }: { product: Product }) {
+  const router = useRouter();
   const { occasionById } = useTaxonomy();
   const { add } = useCart();
   const [adding, setAdding] = useState(false);
   const [saved, setSaved] = useState(false);
   const off = discountPercent(product.price, product.compareAt);
   const firstOccasion = occasionById.get(product.occasionIds[0]);
+  const needsCustomization = productRequiresCustomization(product);
 
   return (
     <article className="group relative flex h-full flex-col overflow-hidden rounded-lg border border-line bg-white transition-all duration-500 ease-out-expo hover:-translate-y-[0.8vh] hover:border-accent-300 hover:shadow-lift">
@@ -121,13 +125,17 @@ export function ProductCard({ product }: { product: Product }) {
             type="button"
             onClick={(e) => {
               e.preventDefault();
+              if (needsCustomization) {
+                router.push(`/products/${product.slug}`);
+                return;
+              }
               add(product.id, 1, product.variants?.[0]?.id, { product });
               setAdding(true);
               window.setTimeout(() => setAdding(false), 900);
             }}
             className="relative z-10 rounded-xs bg-ink px-4 py-2 text-2xs font-bold tracking-wide text-cream uppercase transition-all duration-300 hover:bg-accent-600 active:scale-95"
           >
-            {adding ? "Added" : "Add"}
+            {needsCustomization ? "Personalise" : adding ? "Added" : "Add"}
           </button>
         </div>
       </div>

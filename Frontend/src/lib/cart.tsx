@@ -22,9 +22,9 @@ type State = {
 
 type Action =
   | { type: "add"; line: CartLine }
-  | { type: "setQty"; productId: string; variantId?: string; quantity: number }
-  | { type: "remove"; productId: string; variantId?: string }
-  | { type: "note"; productId: string; variantId?: string; giftNote: string }
+  | { type: "setQty"; productId: string; variantId?: string; quantity: number; customization?: CartLine["customization"] }
+  | { type: "remove"; productId: string; variantId?: string; customization?: CartLine["customization"] }
+  | { type: "note"; productId: string; variantId?: string; giftNote: string; customization?: CartLine["customization"] }
   | { type: "coupon"; code: string | null }
   | { type: "shipping"; id: string }
   | { type: "clear" };
@@ -35,20 +35,36 @@ const initialState: State = {
   shippingMethodId: shippingMethods[0].id,
 };
 
-const sameLine = (a: CartLine, productId: string, variantId?: string) =>
-  a.productId === productId && (a.variantId ?? null) === (variantId ?? null);
+const sameLine = (
+  a: CartLine,
+  productId: string,
+  variantId?: string,
+  customization?: CartLine["customization"],
+) => {
+  const customKey = JSON.stringify(customization ?? []);
+  const lineKey = JSON.stringify(a.customization ?? []);
+  return (
+    a.productId === productId &&
+    (a.variantId ?? null) === (variantId ?? null) &&
+    lineKey === customKey
+  );
+};
+
+export function cartLineKey(line: Pick<CartLine, "productId" | "variantId" | "customization">) {
+  return `${line.productId}:${line.variantId ?? ""}:${JSON.stringify(line.customization ?? [])}`;
+}
 
 function reducer(state: State, action: Action): State {
   switch (action.type) {
     case "add": {
       const existing = state.lines.find((l) =>
-        sameLine(l, action.line.productId, action.line.variantId),
+        sameLine(l, action.line.productId, action.line.variantId, action.line.customization),
       );
       if (existing) {
         return {
           ...state,
           lines: state.lines.map((l) =>
-            sameLine(l, action.line.productId, action.line.variantId)
+            sameLine(l, action.line.productId, action.line.variantId, action.line.customization)
               ? {
                   ...l,
                   quantity: Math.min(l.quantity + action.line.quantity, 99),
@@ -65,14 +81,14 @@ function reducer(state: State, action: Action): State {
         return {
           ...state,
           lines: state.lines.filter(
-            (l) => !sameLine(l, action.productId, action.variantId),
+            (l) => !sameLine(l, action.productId, action.variantId, action.customization),
           ),
         };
       }
       return {
         ...state,
         lines: state.lines.map((l) =>
-          sameLine(l, action.productId, action.variantId)
+          sameLine(l, action.productId, action.variantId, action.customization)
             ? { ...l, quantity: Math.min(action.quantity, 99) }
             : l,
         ),
@@ -81,13 +97,15 @@ function reducer(state: State, action: Action): State {
     case "remove":
       return {
         ...state,
-        lines: state.lines.filter((l) => !sameLine(l, action.productId, action.variantId)),
+        lines: state.lines.filter(
+          (l) => !sameLine(l, action.productId, action.variantId, action.customization),
+        ),
       };
     case "note":
       return {
         ...state,
         lines: state.lines.map((l) =>
-          sameLine(l, action.productId, action.variantId)
+          sameLine(l, action.productId, action.variantId, action.customization)
             ? { ...l, giftNote: action.giftNote }
             : l,
         ),
@@ -185,10 +203,14 @@ type CartContextValue = {
     productId: string,
     quantity?: number,
     variantId?: string,
-    options?: { openDrawer?: boolean; product?: Product },
+    options?: {
+      openDrawer?: boolean;
+      product?: Product;
+      customization?: CartLine["customization"];
+    },
   ) => void;
-  setQty: (productId: string, quantity: number, variantId?: string) => void;
-  remove: (productId: string, variantId?: string) => void;
+  setQty: (productId: string, quantity: number, variantId?: string, customization?: CartLine["customization"]) => void;
+  remove: (productId: string, variantId?: string, customization?: CartLine["customization"]) => void;
   setNote: (productId: string, note: string, variantId?: string) => void;
   applyCoupon: (code: string) => boolean;
   clearCoupon: () => void;
@@ -239,11 +261,25 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       productId: string,
       quantity = 1,
       variantId?: string,
-      options?: { openDrawer?: boolean; product?: Product },
+      options?: {
+        openDrawer?: boolean;
+        product?: Product;
+        customization?: CartLine["customization"];
+      },
     ) => {
+      const fields = options?.product?.customizationFields;
+      if ((fields?.length ?? 0) > 0 && !(options?.customization?.length)) {
+        return;
+      }
       dispatch({
         type: "add",
-        line: { productId, variantId, quantity, product: options?.product },
+        line: {
+          productId,
+          variantId,
+          quantity,
+          product: options?.product,
+          customization: options?.customization,
+        },
       });
       setLastAdded(productId);
       // Buy now navigates straight to checkout, so the drawer must stay shut.
@@ -277,9 +313,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     openDrawer: () => setDrawerOpen(true),
     closeDrawer: () => setDrawerOpen(false),
     add,
-    setQty: (productId, quantity, variantId) =>
-      dispatch({ type: "setQty", productId, variantId, quantity }),
-    remove: (productId, variantId) => dispatch({ type: "remove", productId, variantId }),
+    setQty: (productId, quantity, variantId, customization) =>
+      dispatch({ type: "setQty", productId, variantId, quantity, customization }),
+    remove: (productId, variantId, customization) =>
+      dispatch({ type: "remove", productId, variantId, customization }),
     setNote: (productId, giftNote, variantId) =>
       dispatch({ type: "note", productId, variantId, giftNote }),
     applyCoupon,

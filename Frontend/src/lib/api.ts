@@ -92,6 +92,16 @@ export const cartApi = {
   clear: () => apiDelete<{ cart: ApiCart }>(API_PATHS.cart.clear),
 };
 
+/** Authenticated image uploads for personalisation (Cloudinary `dearlys/uploads`). */
+export const uploadApi = {
+  uploadImage: (formData: FormData) =>
+    apiPost<ApiUpload>(API_PATHS.uploads.create, formData),
+  deleteUpload: (publicId: string) =>
+    apiDelete<{ publicId: string }>(
+      withQuery(API_PATHS.uploads.delete, buildQuery({ publicId })),
+    ),
+};
+
 export const wishlistApi = {
   get: () => apiGet<{ wishlist: ApiWishlist }>(API_PATHS.wishlist.get),
   add: (productId: string) =>

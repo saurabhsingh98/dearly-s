@@ -22,6 +22,14 @@ export type ProductVariant = {
   heightCm?: number;
 };
 
+export type ProductCustomizationField = {
+  name: string;
+  type: "TEXT" | "TEXTAREA" | "NUMBER" | "SELECT" | "IMAGE";
+  required?: boolean;
+  placeholder?: string;
+  options?: string[];
+};
+
 export type Product = {
   id: string;
   slug: string;
@@ -40,6 +48,7 @@ export type Product = {
   badge?: string;
   art: ProductArt;
   variants?: ProductVariant[];
+  customizationFields?: ProductCustomizationField[];
   highlights: string[];
   specs: { label: string; value: string }[];
   personalisable: boolean;
@@ -83,6 +92,13 @@ export type CartLine = {
   variantId?: string;
   quantity: number;
   giftNote?: string;
+  customization?: {
+    name: string;
+    type?: string;
+    value?: string;
+    imageUrl?: string;
+    imagePublicId?: string;
+  }[];
   /** Persisted when the product is not in the static demo catalog (API / Mongo id). */
   product?: Product;
 };

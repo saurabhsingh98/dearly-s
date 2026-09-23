@@ -12,6 +12,7 @@ const orderItemCustomizationSchema = new mongoose.Schema(
     type: { type: String, trim: true },
     value: { type: String, trim: true },
     imageUrl: { type: String, trim: true },
+    imagePublicId: { type: String, trim: true },
   },
   { _id: false }
 );

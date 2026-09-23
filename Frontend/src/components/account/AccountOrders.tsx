@@ -7,6 +7,10 @@ import { orderApi } from "@/lib/api";
 import type { ApiOrder } from "@/lib/api-types";
 import { formatRupees } from "@/lib/money";
 import {
+  orderHasPersonalization,
+  PERSONALIZED_FINAL_SALE_NOTE,
+} from "@/lib/order-policy";
+import {
   EmptyState,
   ErrorNote,
   Panel,
@@ -112,7 +116,11 @@ export function AccountOrders() {
             cta={{ href: "/products", label: "Start shopping" }}
           />
         ) : (
-          orders.map((order) => (
+          orders.map((order) => {
+            const personalized = orderHasPersonalization(order);
+            const canCancel = CANCELLABLE.has(order.orderStatus) && !personalized;
+
+            return (
             <article
               key={order._id}
               className="rounded-md border border-line bg-cream p-5 transition-shadow duration-300 ease-out-expo hover:shadow-soft"
@@ -165,7 +173,7 @@ export function AccountOrders() {
                     </span>
                   )}
                 </div>
-                {CANCELLABLE.has(order.orderStatus) && (
+                {canCancel ? (
                   <button
                     type="button"
                     onClick={() => cancel(order._id)}
@@ -174,10 +182,15 @@ export function AccountOrders() {
                   >
                     {cancelling === order._id ? "Cancelling…" : "Cancel order"}
                   </button>
-                )}
+                ) : personalized && CANCELLABLE.has(order.orderStatus) ? (
+                  <p className="max-w-[28ch] text-right text-2xs text-ink-faint">
+                    {PERSONALIZED_FINAL_SALE_NOTE}
+                  </p>
+                ) : null}
               </div>
             </article>
-          ))
+            );
+          })
         )}
 
         {totalPages > 1 && (

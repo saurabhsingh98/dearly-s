@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:policy": "node scripts/check-order-policy.mjs"
   },
   "dependencies": {
     "@react-oauth/google": "^0.12.2",

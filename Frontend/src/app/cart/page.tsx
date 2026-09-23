@@ -4,12 +4,12 @@ import Link from "next/link";
 import { ProductArt } from "@/components/ui/ProductArt";
 import { QuantityStepper } from "@/components/ui/QuantityStepper";
 import { OrderSummaryCard } from "@/components/checkout/OrderSummaryCard";
-import { useCart } from "@/lib/cart";
+import { useCart, cartLineKey } from "@/lib/cart";
 import { formatMoney } from "@/lib/money";
 import { Motif } from "@/components/ui/Motif";
 
 export default function CartPage() {
-  const { lines, setQty, remove, setNote, count, hydrated } = useCart();
+  const { lines, setQty, remove, count, hydrated } = useCart();
 
   if (!hydrated) {
     return (
@@ -58,7 +58,7 @@ export default function CartPage() {
         <ul className="flex flex-col gap-4">
           {lines.map((line) => (
             <li
-              key={`${line.productId}-${line.variantId ?? "base"}`}
+              key={cartLineKey(line)}
               className="grid gap-4 rounded-lg border border-line bg-white p-4 sm:grid-cols-[auto_1fr]"
             >
               <Link href={`/products/${line.product.slug}`} className="shrink-0">
@@ -93,25 +93,26 @@ export default function CartPage() {
                   </div>
                 </div>
 
-                {line.product.personalisable && (
-                  <input
-                    value={line.giftNote ?? ""}
-                    onChange={(e) => setNote(line.productId, e.target.value, line.variantId)}
-                    placeholder="Add a free gift note for this item"
-                    maxLength={120}
-                    className="w-full rounded-sm border border-ink/10 bg-cream px-4 py-3 text-xs outline-none transition focus:border-accent-600"
-                  />
-                )}
+                {line.customization?.length ? (
+                  <ul className="rounded-sm border border-line bg-cream/80 px-4 py-3 text-xs text-ink-soft">
+                    {line.customization.map((c) => (
+                      <li key={c.name}>
+                        <span className="font-semibold text-ink">{c.name}:</span>{" "}
+                        {c.imageUrl || c.value}
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
 
                 <div className="mt-auto flex flex-wrap items-center justify-between gap-3">
                   <QuantityStepper
                     value={line.quantity}
                     max={line.product.stock}
-                    onChange={(q) => setQty(line.productId, q, line.variantId)}
+                    onChange={(q) => setQty(line.productId, q, line.variantId, line.customization)}
                   />
                   <button
                     type="button"
-                    onClick={() => remove(line.productId, line.variantId)}
+                    onClick={() => remove(line.productId, line.variantId, line.customization)}
                     className="text-xs text-ink-faint underline underline-offset-2 transition hover:text-accent-600"
                   >
                     Remove

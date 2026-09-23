@@ -24,6 +24,7 @@ async function pushCart(lines: CartLineView[]) {
       productId: line.productId,
       variantId: line.variantId,
       quantity: line.quantity,
+      customization: line.customization,
     });
   }
 }

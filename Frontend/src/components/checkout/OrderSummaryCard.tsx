@@ -3,8 +3,9 @@
 import { useState } from "react";
 import { ProductArt } from "@/components/ui/ProductArt";
 import { shippingMethods } from "@/data/site";
-import { useCart } from "@/lib/cart";
+import { useCart, cartLineKey } from "@/lib/cart";
 import { formatMoney } from "@/lib/money";
+import { lineHasPersonalization, PERSONALIZED_FINAL_SALE_NOTE } from "@/lib/order-policy";
 
 export function CouponBox() {
   const { applyCoupon, clearCoupon, couponCode, couponLabel, couponError } = useCart();
@@ -64,6 +65,7 @@ export function OrderSummaryCard({
 }) {
   const { lines, summary, shippingMethodId } = useCart();
   const method = shippingMethods.find((s) => s.id === shippingMethodId);
+  const hasPersonalizedLines = lines.some((line) => lineHasPersonalization(line.customization));
 
   return (
     <div className="rounded-lg border border-line bg-white p-6">
@@ -72,7 +74,7 @@ export function OrderSummaryCard({
       {showLines && (
         <ul className="mt-5 flex flex-col gap-4 border-b border-line pb-5">
           {lines.map((line) => (
-            <li key={`${line.productId}-${line.variantId ?? "base"}`} className="flex gap-3">
+            <li key={cartLineKey(line)} className="flex gap-3">
               <div className="relative shrink-0">
                 <ProductArt art={line.product.art} className="size-16 rounded-sm" motifClass="size-6" />
                 <span className="absolute -top-2 -right-2 grid size-6 place-items-center rounded-full bg-ink text-2xs font-bold text-cream">
@@ -124,6 +126,10 @@ export function OrderSummaryCard({
           <dd className="font-semibold">{formatMoney(summary.tax)}</dd>
         </div>
       </dl>
+
+      {hasPersonalizedLines && (
+        <p className="border-t border-line pt-4 text-2xs text-ink-faint">{PERSONALIZED_FINAL_SALE_NOTE}</p>
+      )}
 
       <div className="flex items-end justify-between border-t border-line pt-5">
         <span className="text-base font-bold">Total</span>

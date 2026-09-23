@@ -22,6 +22,12 @@ import {
   variantsToPayload,
   type VariantDraft,
 } from "@/components/admin/ProductVariantEditor";
+import {
+  ProductCustomizationEditor,
+  customizationFieldsFromApi,
+  customizationFieldsToPayload,
+  type CustomizationFieldDraft,
+} from "@/components/admin/ProductCustomizationEditor";
 import type { ApiProduct } from "@/lib/api-types";
 import { formatInr } from "@/lib/admin-constants";
 
@@ -64,8 +70,14 @@ export default function AdminProductsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [deactivatingId, setDeactivatingId] = useState<string | null>(null);
   const [createVariants, setCreateVariants] = useState<VariantDraft[]>([]);
+  const [createCustomizationFields, setCreateCustomizationFields] = useState<
+    CustomizationFieldDraft[]
+  >([]);
   const [editingProduct, setEditingProduct] = useState<ApiProduct | null>(null);
   const [editVariants, setEditVariants] = useState<VariantDraft[]>([]);
+  const [editCustomizationFields, setEditCustomizationFields] = useState<CustomizationFieldDraft[]>(
+    [],
+  );
   const [editLoading, setEditLoading] = useState(false);
   const [editSaving, setEditSaving] = useState(false);
   const {
@@ -222,6 +234,11 @@ export default function AdminProductsPage() {
       formData.append("images", JSON.stringify(imagePayload));
     }
 
+    const customizationPayload = customizationFieldsToPayload(createCustomizationFields);
+    if (customizationPayload.length) {
+      formData.append("customizationFields", JSON.stringify(customizationPayload));
+    }
+
     setSubmitting(true);
     try {
       await adminApi.createProduct(formData);
@@ -239,6 +256,7 @@ export default function AdminProductsPage() {
         isFeatured: false,
       });
       setCreateVariants([]);
+      setCreateCustomizationFields([]);
       await loadCatalog(page);
     } catch (err) {
       clearStagedImages();
@@ -257,6 +275,7 @@ export default function AdminProductsPage() {
       if (!product) throw new Error("Product not found");
       setEditingProduct(product);
       setEditVariants(variantsFromApi(product.variants));
+      setEditCustomizationFields(customizationFieldsFromApi(product.customizationFields));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not load product");
     } finally {
@@ -264,20 +283,25 @@ export default function AdminProductsPage() {
     }
   };
 
-  const saveEditVariants = async () => {
+  const saveProductEdits = async () => {
     if (!editingProduct) return;
     setEditSaving(true);
     setError("");
     try {
       const formData = new FormData();
       formData.append("variants", JSON.stringify(variantsToPayload(editVariants)));
+      formData.append(
+        "customizationFields",
+        JSON.stringify(customizationFieldsToPayload(editCustomizationFields)),
+      );
       await adminApi.updateProduct(editingProduct._id, formData);
-      setMessage("Variants updated.");
+      setMessage("Product updated.");
       setEditingProduct(null);
       setEditVariants([]);
+      setEditCustomizationFields([]);
       await loadCatalog(page);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not save variants");
+      setError(err instanceof Error ? err.message : "Could not save product");
     } finally {
       setEditSaving(false);
     }
@@ -369,6 +393,11 @@ export default function AdminProductsPage() {
           <ProductVariantEditor
             variants={createVariants}
             onChange={setCreateVariants}
+            disabled={submitting}
+          />
+          <ProductCustomizationEditor
+            fields={createCustomizationFields}
+            onChange={setCreateCustomizationFields}
             disabled={submitting}
           />
           <input
@@ -577,33 +606,39 @@ export default function AdminProductsPage() {
         <section className="rounded-lg border border-line bg-cream p-6 xl:col-span-2">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-lg font-semibold">
-              Variants — {editingProduct.name}
+              Variants & personalisation — {editingProduct.name}
             </h2>
             <button
               type="button"
               onClick={() => {
                 setEditingProduct(null);
                 setEditVariants([]);
+                setEditCustomizationFields([]);
               }}
               className="text-sm text-ink-soft underline"
             >
               Close
             </button>
           </div>
-          <div className="mt-4">
+          <div className="mt-4 grid gap-6 lg:grid-cols-2">
             <ProductVariantEditor
               variants={editVariants}
               onChange={setEditVariants}
+              disabled={editSaving}
+            />
+            <ProductCustomizationEditor
+              fields={editCustomizationFields}
+              onChange={setEditCustomizationFields}
               disabled={editSaving}
             />
           </div>
           <button
             type="button"
             disabled={editSaving}
-            onClick={() => void saveEditVariants()}
+            onClick={() => void saveProductEdits()}
             className="mt-4 rounded-md gradient-accent px-4 py-2 text-sm font-bold text-cream disabled:opacity-60"
           >
-            {editSaving ? "Saving…" : "Save variants"}
+            {editSaving ? "Saving…" : "Save changes"}
           </button>
         </section>
       )}

@@ -3,14 +3,22 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { ProductCustomizationForm } from "@/components/product/ProductCustomizationForm";
 import { ProductArt } from "@/components/ui/ProductArt";
 import { QuantityStepper } from "@/components/ui/QuantityStepper";
 import { Stars } from "@/components/ui/Stars";
 import { useTaxonomy } from "@/components/taxonomy/TaxonomyProvider";
 import { useCart } from "@/lib/cart";
 import { discountPercent, formatMoney } from "@/lib/money";
-import type { Product } from "@/lib/types";
+import {
+  buildCustomizationPayload,
+  emptyCustomizationValues,
+  validateCustomizationInput,
+  type CustomizationImagePublicIds,
+  type CustomizationValues,
+} from "@/lib/product-customization";
+import type { CartLine, Product } from "@/lib/types";
 import { variantDetailRows } from "@/lib/variant-details";
 import { Motif } from "@/components/ui/Motif";
 
@@ -23,9 +31,81 @@ export function ProductDetail({ product }: { product: Product }) {
   const [variantId, setVariantId] = useState(product.variants?.[0]?.id);
   const [quantity, setQuantity] = useState(1);
   const [tab, setTab] = useState<(typeof tabs)[number]>("Description");
-  const [note, setNote] = useState("");
   const [added, setAdded] = useState(false);
   const [view, setView] = useState(0);
+
+  const customizationFields = useMemo(
+    () => product.customizationFields ?? [],
+    [product.customizationFields],
+  );
+  const isPersonalizedProduct = customizationFields.length > 0;
+  const [customizationValues, setCustomizationValues] = useState<CustomizationValues>(() =>
+    emptyCustomizationValues(customizationFields),
+  );
+  const [customizationImageIds, setCustomizationImageIds] = useState<CustomizationImagePublicIds>(
+    {},
+  );
+  const [customizationUploading, setCustomizationUploading] = useState(false);
+  const [customizationError, setCustomizationError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setCustomizationValues(emptyCustomizationValues(customizationFields));
+    setCustomizationImageIds({});
+    setCustomizationUploading(false);
+    setCustomizationError(null);
+  }, [product.id, customizationFields]);
+
+  const handleCustomizationImageChange = (
+    fieldName: string,
+    url: string,
+    publicId: string | null,
+  ) => {
+    setCustomizationValues((prev) => ({ ...prev, [fieldName]: url }));
+    setCustomizationImageIds((prev) => {
+      const next = { ...prev };
+      if (publicId) next[fieldName] = publicId;
+      else delete next[fieldName];
+      return next;
+    });
+  };
+
+  const resolveCustomization = (): CartLine["customization"] | false | undefined => {
+    if (!customizationFields.length) return undefined;
+    if (customizationUploading) {
+      setCustomizationError("Wait for your image upload to finish");
+      return false;
+    }
+    const err = validateCustomizationInput(
+      customizationFields,
+      customizationValues,
+      customizationImageIds,
+    );
+    if (err) {
+      setCustomizationError(err);
+      return false;
+    }
+    setCustomizationError(null);
+    return buildCustomizationPayload(
+      customizationFields,
+      customizationValues,
+      customizationImageIds,
+    );
+  };
+
+  const handleAdd = () => {
+    const customization = resolveCustomization();
+    if (customization === false) return;
+    add(product.id, quantity, variantId, { product, customization });
+    setAdded(true);
+    window.setTimeout(() => setAdded(false), 1200);
+  };
+
+  const handleBuyNow = () => {
+    const customization = resolveCustomization();
+    if (customization === false) return;
+    add(product.id, quantity, variantId, { openDrawer: false, product, customization });
+    router.push("/checkout");
+  };
 
   const variant = product.variants?.find((v) => v.id === variantId);
   const unitPrice = product.price + (variant?.priceDelta ?? 0);
@@ -46,17 +126,6 @@ export function ProductDetail({ product }: { product: Product }) {
   const photos = product.images ?? [];
   const slideCount = photos.length || views.length;
   const active = Math.min(view, slideCount - 1);
-
-  const handleAdd = () => {
-    add(product.id, quantity, variantId, { product });
-    setAdded(true);
-    window.setTimeout(() => setAdded(false), 1200);
-  };
-
-  const handleBuyNow = () => {
-    add(product.id, quantity, variantId, { openDrawer: false, product });
-    router.push("/checkout");
-  };
 
   return (
     <>
@@ -201,23 +270,15 @@ export function ProductDetail({ product }: { product: Product }) {
             </fieldset>
           )}
 
-          {/* personalisation */}
-          {product.personalisable && (
-            <div className="mt-8 rounded-md border border-accent-400/40 bg-accent-100/50 p-5">
-              <label htmlFor="gift-note" className="flex items-center gap-2 text-sm font-bold">
-                Add a free gift note or engraving
-              </label>
-              <textarea
-                id="gift-note"
-                value={note}
-                onChange={(e) => setNote(e.target.value.slice(0, 120))}
-                rows={2}
-                placeholder="Happy 30th, Maa. Fifteen years of these boxes and counting."
-                className="mt-3 w-full resize-none rounded-sm border border-ink/10 bg-white px-4 py-3 text-sm outline-none transition focus:border-accent-600"
-              />
-              <p className="mt-2 text-2xs text-ink-faint">{120 - note.length} characters left</p>
-            </div>
-          )}
+          <ProductCustomizationForm
+            fields={customizationFields}
+            values={customizationValues}
+            imagePublicIds={customizationImageIds}
+            onChange={setCustomizationValues}
+            onImageChange={handleCustomizationImageChange}
+            onUploadingChange={setCustomizationUploading}
+            error={customizationError}
+          />
 
           {/* quantity + actions */}
           <div className="mt-8 flex flex-wrap items-center gap-4">
@@ -245,12 +306,17 @@ export function ProductDetail({ product }: { product: Product }) {
           </div>
 
           <ul className="mt-6 grid gap-3 sm:grid-cols-2">
-            {[
-              ["truck", `Delivered in ${product.deliveryEta}`],
-              ["returns", "14-day easy returns"],
-              ["lock", "Secure Razorpay checkout"],
-              ["ribbon", "Gift wrapped at no charge"],
-            ].map(([icon, text]) => (
+            {(
+              [
+                ["truck", `Delivered in ${product.deliveryEta}`],
+                ...(!isPersonalizedProduct ? ([["returns", "14-day easy returns"]] as const) : []),
+                ["lock", "Secure Razorpay checkout"],
+                ["ribbon", "Gift wrapped at no charge"],
+                ...(isPersonalizedProduct
+                  ? ([["returns", "Final sale — no cancel or return"]] as const)
+                  : []),
+              ] as const
+            ).map(([icon, text]) => (
               <li key={text} className="flex items-center gap-3 text-xs text-ink-soft">
                 <span className="grid size-9 shrink-0 place-items-center border border-line text-ink-soft">
                   <Motif name={icon} className="size-4" />
@@ -401,8 +467,9 @@ export function ProductDetail({ product }: { product: Product }) {
                     checkout if the gift needs to land on an exact date.
                   </p>
                   <p>
-                    Returns accepted within 14 days on unopened items. Personalised pieces cannot be
-                    returned unless they arrive damaged.
+                    {isPersonalizedProduct
+                      ? "Personalised items are made to order and are final sale. They cannot be cancelled or returned unless they arrive damaged."
+                      : "Returns accepted within 14 days on unopened items."}
                   </p>
                 </div>
               )}

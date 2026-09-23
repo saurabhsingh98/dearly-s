@@ -1,5 +1,5 @@
 import type { CatalogQuery } from "@/lib/catalog";
-import type { Product, ProductArt } from "@/lib/types";
+import type { Product, ProductArt, ProductCustomizationField } from "@/lib/types";
 
 export type ApiCategoryNode = {
   _id: string;
@@ -23,7 +23,6 @@ export type ApiProductListItem = {
   reviewCount?: number;
   isFeatured?: boolean;
   inventory?: { stock?: number };
-  customizationFields?: unknown[];
   images?: { url: string; alt?: string }[];
   category?: ApiTaxonomyRef;
   subCategory?: ApiTaxonomyRef;
@@ -33,6 +32,13 @@ export type ApiProductListItem = {
   highlights?: string[];
   specs?: { label: string; value: string }[];
   art?: { from?: string; to?: string; motif?: string; pattern?: string };
+  customizationFields?: {
+    name: string;
+    type: string;
+    required?: boolean;
+    placeholder?: string;
+    options?: string[];
+  }[];
   variants?: {
     _id: string;
     label?: string;
@@ -134,6 +140,15 @@ export function mapApiProductToProduct(item: ApiProductListItem): Product {
     highlights: item.highlights ?? [],
     specs: item.specs ?? [],
     personalisable: (item.customizationFields?.length ?? 0) > 0,
+    customizationFields: (item.customizationFields ?? []).map(
+      (f): ProductCustomizationField => ({
+        name: f.name,
+        type: f.type as ProductCustomizationField["type"],
+        required: f.required,
+        placeholder: f.placeholder,
+        options: f.options,
+      }),
+    ),
     deliveryEta: item.deliveryEta || "3–5 days",
     image: item.images?.[0]?.url,
     images: (item.images ?? []).map((i) => i.url).filter(Boolean),

@@ -80,6 +80,10 @@ export const API_PATHS = {
   coupons: {
     validate: "/coupons/validate",
   },
+  uploads: {
+    create: "/uploads",
+    delete: "/uploads",
+  },
   products: {
     list: "/products",
     featured: "/products/featured",

@@ -67,6 +67,47 @@ describe('checkout', () => {
     expect(saved.inventory.stock).toBe(10);
   });
 
+  it('rejects cancellation when the order has personalised items', async () => {
+    const { agent, user } = await registerUser();
+    const address = await createAddress(agent);
+    const product = await createProduct({
+      customizationFields: [{ name: 'Note', type: 'TEXT', required: true }],
+    });
+    await cartService.addCartItem(user._id, {
+      productId: product._id.toString(),
+      quantity: 1,
+      customization: [{ name: 'Note', type: 'TEXT', value: 'Hello' }],
+    });
+    const { order } = await orderService.createOrderFromCart(user._id, { addressId: address._id });
+
+    await expect(orderService.cancelOrder(user._id, order._id)).rejects.toMatchObject({
+      statusCode: 400,
+    });
+  });
+
+  it('blocks admin refund when the order has personalised items', async () => {
+    const { agent, user } = await registerUser();
+    const address = await createAddress(agent);
+    const product = await createProduct({
+      customizationFields: [{ name: 'Note', type: 'TEXT', required: true }],
+    });
+    await cartService.addCartItem(user._id, {
+      productId: product._id.toString(),
+      quantity: 1,
+      customization: [{ name: 'Note', type: 'TEXT', value: 'Hello' }],
+    });
+    const { order } = await orderService.createOrderFromCart(user._id, { addressId: address._id });
+    await markPaid(order._id);
+
+    await expect(
+      orderService.updateOrderStatus(order._id, 'REFUNDED', { note: 'Customer request' })
+    ).rejects.toMatchObject({ statusCode: 400 });
+
+    const saved = await Order.findById(order._id);
+    expect(saved.orderStatus).toBe('PAYMENT_CONFIRMED');
+    expect(saved.paymentStatus).toBe('PAID');
+  });
+
   it('refunds and restores stock when a paid order is cancelled', async () => {
     const { user, address, product } = await setupCheckout();
     const { order } = await orderService.createOrderFromCart(user._id, { addressId: address._id });

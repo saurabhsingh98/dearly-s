@@ -88,16 +88,27 @@ export default function AdminDashboardPage() {
                 </tr>
               </thead>
               <tbody>
-                {recentOrders.map((o) => (
+                {recentOrders.map((o) => {
+                  const u = o.userId;
+                  const name =
+                    typeof u === "object" && u && "firstName" in u
+                      ? [u.firstName, u.lastName].filter(Boolean).join(" ")
+                      : "Customer";
+                  const email =
+                    typeof u === "object" && u && "email" in u ? u.email : null;
+                  return (
                   <tr key={o._id} className="border-t border-line/60">
                     <td className="py-2 pr-2">
-                      {o.userId?.firstName} {o.userId?.lastName}
-                      <span className="block text-xs text-ink-faint">{o.userId?.email}</span>
+                      {name}
+                      {email && (
+                        <span className="block text-xs text-ink-faint">{email}</span>
+                      )}
                     </td>
                     <td className="py-2">{formatInr(o.totalAmount)}</td>
                     <td className="py-2 text-xs">{o.orderStatus}</td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
