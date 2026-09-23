@@ -12,6 +12,14 @@ export type ProductVariant = {
   label: string;
   swatch?: string;
   priceDelta?: Money;
+  sku?: string;
+  stock?: number;
+  size?: string;
+  color?: string;
+  material?: string;
+  lengthCm?: number;
+  breadthCm?: number;
+  heightCm?: number;
 };
 
 export type Product = {

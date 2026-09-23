@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { LayoutDashboard, LogOut, Package, ShoppingBag, Ticket } from "lucide-react";
+import { LayoutDashboard, FolderTree, LogOut, Package, ShoppingBag, Ticket } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { brand } from "@/data/site";
 
@@ -11,6 +11,7 @@ const nav = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { href: "/admin/orders", label: "Orders", icon: ShoppingBag },
   { href: "/admin/products", label: "Products", icon: Package },
+  { href: "/admin/categories", label: "Categories", icon: FolderTree },
   { href: "/admin/coupons", label: "Coupons", icon: Ticket },
 ];
 

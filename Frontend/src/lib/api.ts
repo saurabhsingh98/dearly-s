@@ -192,6 +192,9 @@ export type AdminCategory = {
   _id: string;
   name: string;
   slug: string;
+  description?: string;
+  sortOrder?: number;
+  isActive?: boolean;
   parentCategory?: { _id: string; name: string; slug: string } | string | null;
 };
 
@@ -242,7 +245,10 @@ export const adminApi = {
       json(typeof orderStatus === "string" ? { orderStatus } : orderStatus),
     ),
 
-  categories: () => apiGet<{ categories: AdminCategory[] }>(API_PATHS.admin.categories),
+  categories: (query: string | QueryParams = "") =>
+    apiGet<{ categories: AdminCategory[] }>(
+      withQuery(API_PATHS.admin.categories, toQuery(query)),
+    ),
   createCategory: (body: Record<string, unknown>) =>
     apiPost<{ category: ApiCategory }>(API_PATHS.admin.categories, json(body)),
   updateCategory: (id: string, body: Record<string, unknown>) =>
@@ -253,6 +259,7 @@ export const adminApi = {
     apiGet<{ items: unknown[]; pagination?: unknown }>(
       withQuery(API_PATHS.admin.products, toQuery(query)),
     ),
+  product: (id: string) => apiGet<{ product: ApiProduct }>(API_PATHS.admin.product(id)),
   /** `multipart/form-data`; nested fields are JSON-encoded per field by the caller. */
   createProduct: (formData: FormData) =>
     apiPost<{ product: unknown }>(API_PATHS.admin.products, formData),

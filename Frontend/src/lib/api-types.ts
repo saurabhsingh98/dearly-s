@@ -97,6 +97,7 @@ export type ApiProductVariant = {
   label?: string;
   attributes?: { size?: string; color?: string; material?: string };
   sku?: string;
+  priceDelta?: number;
   price?: number;
   stock?: number;
   reservedStock?: number;

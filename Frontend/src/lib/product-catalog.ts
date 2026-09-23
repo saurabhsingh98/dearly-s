@@ -37,9 +37,12 @@ export type ApiProductListItem = {
     _id: string;
     label?: string;
     swatch?: string;
+    sku?: string;
     priceDelta?: number;
     price?: number;
     stock?: number;
+    attributes?: { size?: string; color?: string; material?: string };
+    dimensions?: { lengthCm?: number; breadthCm?: number; heightCm?: number };
   }[];
 };
 
@@ -87,6 +90,9 @@ export function mapApiProductToProduct(item: ApiProductListItem): Product {
 
   const fallbackArt = artFromSlug(item.slug);
 
+  const hasVariants = (item.variants?.length ?? 0) > 0;
+  const variantStock = (item.variants ?? []).reduce((sum, v) => sum + (v.stock ?? 0), 0);
+
   return {
     id: item._id,
     slug: item.slug,
@@ -101,7 +107,7 @@ export function mapApiProductToProduct(item: ApiProductListItem): Product {
     tags: item.tags ?? [],
     rating: item.rating ?? 0,
     reviewCount: item.reviewCount ?? 0,
-    stock: item.inventory?.stock ?? 0,
+    stock: hasVariants ? variantStock : item.inventory?.stock ?? 0,
     badge: item.badge || (item.isFeatured ? "Featured" : undefined),
     art: {
       from: item.art?.from || fallbackArt.from,
@@ -109,11 +115,19 @@ export function mapApiProductToProduct(item: ApiProductListItem): Product {
       motif: item.art?.motif || fallbackArt.motif,
       pattern: (item.art?.pattern as ProductArt["pattern"]) || fallbackArt.pattern,
     },
-    variants: item.variants?.length
-      ? item.variants.map((v) => ({
+    variants: hasVariants
+      ? item.variants!.map((v) => ({
           id: v._id,
           label: v.label || "Option",
           swatch: v.swatch,
+          sku: v.sku,
+          stock: v.stock,
+          size: v.attributes?.size,
+          color: v.attributes?.color,
+          material: v.attributes?.material,
+          lengthCm: v.dimensions?.lengthCm,
+          breadthCm: v.dimensions?.breadthCm,
+          heightCm: v.dimensions?.heightCm,
           priceDelta: v.priceDelta ? Math.round(v.priceDelta * 100) : undefined,
         }))
       : undefined,

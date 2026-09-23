@@ -11,6 +11,7 @@ import { useTaxonomy } from "@/components/taxonomy/TaxonomyProvider";
 import { useCart } from "@/lib/cart";
 import { discountPercent, formatMoney } from "@/lib/money";
 import type { Product } from "@/lib/types";
+import { variantDetailRows } from "@/lib/variant-details";
 import { Motif } from "@/components/ui/Motif";
 
 const tabs = ["Description", "What's inside", "Specs", "Delivery"] as const;
@@ -28,6 +29,7 @@ export function ProductDetail({ product }: { product: Product }) {
 
   const variant = product.variants?.find((v) => v.id === variantId);
   const unitPrice = product.price + (variant?.priceDelta ?? 0);
+  const availableStock = variant?.stock ?? product.stock;
   const off = discountPercent(product.price, product.compareAt);
   const category = categoryById.get(product.categoryId);
   const subcategory = subcategoryById.get(product.subcategoryId);
@@ -219,7 +221,7 @@ export function ProductDetail({ product }: { product: Product }) {
 
           {/* quantity + actions */}
           <div className="mt-8 flex flex-wrap items-center gap-4">
-            <QuantityStepper value={quantity} onChange={setQuantity} max={product.stock} />
+            <QuantityStepper value={quantity} onChange={setQuantity} max={availableStock} />
             <p className="text-xs text-ink-faint">
               Subtotal <span className="font-bold text-ink">{formatMoney(unitPrice * quantity)}</span>
             </p>
@@ -299,7 +301,81 @@ export function ProductDetail({ product }: { product: Product }) {
             </div>
 
             <div className="animate-fade mt-5 text-sm leading-relaxed text-ink-soft" key={tab}>
-              {tab === "Description" && <p className="text-pretty">{product.description}</p>}
+              {tab === "Description" && (
+                <div className="grid gap-6">
+                  {product.description ? (
+                    <p className="text-pretty text-ink">{product.description}</p>
+                  ) : (
+                    <p className="text-ink-faint">No written description for this product yet.</p>
+                  )}
+                  {product.variants && product.variants.length > 0 && (
+                    <div>
+                      <p className="text-2xs font-bold tracking-[0.15em] text-ink-faint uppercase">
+                        Options & details
+                      </p>
+                      <ul className="mt-3 grid gap-4">
+                        {product.variants.map((v) => {
+                          const rows = variantDetailRows(v);
+                          const selected = v.id === variantId;
+                          return (
+                            <li
+                              key={v.id}
+                              className={`rounded-md border p-4 ${
+                                selected ? "border-ink bg-white" : "border-line bg-cream/50"
+                              }`}
+                            >
+                              <p className="font-semibold text-ink">
+                                {v.label}
+                                {selected && (
+                                  <span className="ml-2 text-2xs font-normal text-ink-faint">
+                                    (selected)
+                                  </span>
+                                )}
+                              </p>
+                              {rows.length > 0 ? (
+                                <dl className="mt-2 grid gap-1 sm:grid-cols-2">
+                                  {rows.map((row) => (
+                                    <div key={row.label}>
+                                      <dt className="text-2xs text-ink-faint">{row.label}</dt>
+                                      <dd className="text-sm text-ink">{row.value}</dd>
+                                    </div>
+                                  ))}
+                                </dl>
+                              ) : (
+                                <p className="mt-1 text-xs text-ink-faint">Standard option</p>
+                              )}
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {tab === "Specs" && (
+                <dl className="grid gap-px overflow-hidden rounded-md border border-line bg-line sm:grid-cols-2">
+                  {product.specs.map((s) => (
+                    <div key={s.label} className="bg-white p-4">
+                      <dt className="text-2xs tracking-wider text-ink-faint uppercase">{s.label}</dt>
+                      <dd className="mt-1 text-sm font-semibold text-ink">{s.value}</dd>
+                    </div>
+                  ))}
+                  {variant &&
+                    variantDetailRows(variant).map((row) => (
+                      <div key={`variant-${row.label}`} className="bg-white p-4">
+                        <dt className="text-2xs tracking-wider text-ink-faint uppercase">
+                          {row.label} ({variant.label})
+                        </dt>
+                        <dd className="mt-1 text-sm font-semibold text-ink">{row.value}</dd>
+                      </div>
+                    ))}
+                  {product.specs.length === 0 &&
+                    (!variant || variantDetailRows(variant).length === 0) && (
+                      <p className="col-span-full bg-white p-4 text-ink-faint">No specs listed.</p>
+                    )}
+                </dl>
+              )}
 
               {tab === "What's inside" && (
                 <ul className="flex flex-col gap-3">
@@ -312,17 +388,6 @@ export function ProductDetail({ product }: { product: Product }) {
                     </li>
                   ))}
                 </ul>
-              )}
-
-              {tab === "Specs" && (
-                <dl className="grid gap-px overflow-hidden rounded-md border border-line bg-line sm:grid-cols-2">
-                  {product.specs.map((s) => (
-                    <div key={s.label} className="bg-white p-4">
-                      <dt className="text-2xs tracking-wider text-ink-faint uppercase">{s.label}</dt>
-                      <dd className="mt-1 text-sm font-semibold text-ink">{s.value}</dd>
-                    </div>
-                  ))}
-                </dl>
               )}
 
               {tab === "Delivery" && (

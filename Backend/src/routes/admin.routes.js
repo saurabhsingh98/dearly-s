@@ -36,6 +36,7 @@ router.delete('/categories/:id', categoryController.deleteCategory);
 
 // PRODUCTS
 router.get('/products', productController.adminListProducts);
+router.get('/products/:id', productController.adminGetProduct);
 router.post(
   '/products',
   imageUpload.array('images', 10),

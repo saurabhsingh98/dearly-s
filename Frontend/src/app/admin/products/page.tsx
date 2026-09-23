@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useCallback, useEffect, useState } from "react";
 import { adminApi, catalogApi } from "@/lib/api";
 import {
@@ -15,6 +16,13 @@ import {
   validateInteger,
   validateRequired,
 } from "@/lib/validation";
+import {
+  ProductVariantEditor,
+  variantsFromApi,
+  variantsToPayload,
+  type VariantDraft,
+} from "@/components/admin/ProductVariantEditor";
+import type { ApiProduct } from "@/lib/api-types";
 import { formatInr } from "@/lib/admin-constants";
 
 type CategoryNode = {
@@ -31,7 +39,9 @@ type AdminProduct = {
   discountPrice?: number;
   isActive: boolean;
   isFeatured: boolean;
+  images?: { url: string; alt?: string }[];
   inventory?: { stock?: number };
+  variants?: ApiProduct["variants"];
   category?: { name?: string };
 };
 
@@ -39,11 +49,25 @@ export default function AdminProductsPage() {
   const [products, setProducts] = useState<AdminProduct[]>([]);
   const [categories, setCategories] = useState<CategoryNode[]>([]);
   const [loading, setLoading] = useState(true);
+  const [catalogLoading, setCatalogLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [catalogFilters, setCatalogFilters] = useState({
+    search: "",
+    category: "",
+    isActive: "",
+    isFeatured: "",
+  });
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const [deactivatingId, setDeactivatingId] = useState<string | null>(null);
+  const [createVariants, setCreateVariants] = useState<VariantDraft[]>([]);
+  const [editingProduct, setEditingProduct] = useState<ApiProduct | null>(null);
+  const [editVariants, setEditVariants] = useState<VariantDraft[]>([]);
+  const [editLoading, setEditLoading] = useState(false);
+  const [editSaving, setEditSaving] = useState(false);
   const {
     items: stagedImages,
     addFiles,
@@ -61,34 +85,66 @@ export default function AdminProductsPage() {
     price: "",
     discountPrice: "",
     stock: "0",
-    lengthCm: "",
-    breadthCm: "",
-    heightCm: "",
     tags: "",
     isFeatured: false,
   });
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [prodRes, catRes] = await Promise.all([
-        adminApi.products("limit=50"),
-        catalogApi.categories(),
-      ]);
-      const prodData = prodRes.data as { items?: AdminProduct[] };
-      const catData = catRes.data as { categories?: CategoryNode[] };
-      setProducts(prodData.items || []);
-      setCategories(catData.categories || []);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load products");
-    } finally {
-      setLoading(false);
-    }
+  const loadCatalog = useCallback(
+    async (pageNum = page) => {
+      setCatalogLoading(true);
+      try {
+        const query: Record<string, string | number> = { page: pageNum, limit: 20 };
+        if (catalogFilters.search.trim()) query.search = catalogFilters.search.trim();
+        if (catalogFilters.category) query.category = catalogFilters.category;
+        if (catalogFilters.isActive) query.isActive = catalogFilters.isActive;
+        if (catalogFilters.isFeatured === "true") query.isFeatured = "true";
+
+        const prodRes = await adminApi.products(query);
+        const prodData = prodRes.data as {
+          items?: AdminProduct[];
+          pagination?: { totalPages?: number };
+        };
+        setProducts(prodData.items || []);
+        setTotalPages(prodData.pagination?.totalPages ?? 1);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to load products");
+      } finally {
+        setCatalogLoading(false);
+        setLoading(false);
+      }
+    },
+    [page, catalogFilters],
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const catRes = await catalogApi.categories();
+        if (!cancelled) {
+          const catData = catRes.data as { categories?: CategoryNode[] };
+          setCategories(catData.categories || []);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : "Failed to load categories");
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    void loadCatalog(page);
+  }, [page, loadCatalog]);
+
+  const applyCatalogFilters = (e: React.FormEvent) => {
+    e.preventDefault();
+    setPage(1);
+    void loadCatalog(1);
+  };
 
   const flatCategories = (nodes: CategoryNode[], depth = 0): { id: string; label: string }[] =>
     nodes.flatMap((n) => [
@@ -110,9 +166,6 @@ export default function AdminProductsPage() {
         price: form.price,
         discountPrice: form.discountPrice,
         stock: form.stock,
-        lengthCm: form.lengthCm,
-        breadthCm: form.breadthCm,
-        heightCm: form.heightCm,
       },
       {
         name: validateRequired("Name", 160),
@@ -120,9 +173,6 @@ export default function AdminProductsPage() {
         price: validateAmount("Price", { min: 1 }),
         discountPrice: validateAmount("Discount price", { min: 0, required: false }),
         stock: validateInteger("Stock", { min: 0, max: LIMITS.stockMax }),
-        lengthCm: validateAmount("Length", { min: 0, required: false }),
-        breadthCm: validateAmount("Breadth", { min: 0, required: false }),
-        heightCm: validateAmount("Height", { min: 0, required: false }),
       },
     ) as Record<string, string>;
     if (form.discountPrice && Number(form.discountPrice) >= Number(form.price)) {
@@ -149,17 +199,16 @@ export default function AdminProductsPage() {
     formData.append("price", form.price);
     if (form.discountPrice) formData.append("discountPrice", form.discountPrice);
     formData.append("isFeatured", String(form.isFeatured));
-    formData.append(
-      "inventory",
-      JSON.stringify({ stock: Number(form.stock) || 0 })
-    );
 
-    const dimensions: Record<string, number> = {};
-    if (form.lengthCm) dimensions.lengthCm = Number(form.lengthCm);
-    if (form.breadthCm) dimensions.breadthCm = Number(form.breadthCm);
-    if (form.heightCm) dimensions.heightCm = Number(form.heightCm);
-    if (Object.keys(dimensions).length) {
-      formData.append("variants", JSON.stringify([{ label: "Default", dimensions }]));
+    const variantPayload = variantsToPayload(createVariants);
+    if (variantPayload.length) {
+      formData.append("variants", JSON.stringify(variantPayload));
+      formData.append("inventory", JSON.stringify({ stock: 0 }));
+    } else {
+      formData.append(
+        "inventory",
+        JSON.stringify({ stock: Number(form.stock) || 0 }),
+      );
     }
 
     const tags = form.tags
@@ -186,13 +235,11 @@ export default function AdminProductsPage() {
         price: "",
         discountPrice: "",
         stock: "0",
-        lengthCm: "",
-        breadthCm: "",
-        heightCm: "",
         tags: "",
         isFeatured: false,
       });
-      await load();
+      setCreateVariants([]);
+      await loadCatalog(page);
     } catch (err) {
       clearStagedImages();
       setError(err instanceof Error ? err.message : "Could not create product");
@@ -201,12 +248,47 @@ export default function AdminProductsPage() {
     }
   };
 
+  const startEditProduct = async (id: string) => {
+    setEditLoading(true);
+    setError("");
+    try {
+      const res = await adminApi.product(id);
+      const product = res.data?.product;
+      if (!product) throw new Error("Product not found");
+      setEditingProduct(product);
+      setEditVariants(variantsFromApi(product.variants));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not load product");
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
+  const saveEditVariants = async () => {
+    if (!editingProduct) return;
+    setEditSaving(true);
+    setError("");
+    try {
+      const formData = new FormData();
+      formData.append("variants", JSON.stringify(variantsToPayload(editVariants)));
+      await adminApi.updateProduct(editingProduct._id, formData);
+      setMessage("Variants updated.");
+      setEditingProduct(null);
+      setEditVariants([]);
+      await loadCatalog(page);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not save variants");
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
   const deactivate = async (id: string) => {
     if (!confirm("Deactivate this product?")) return;
     setDeactivatingId(id);
     try {
       await adminApi.deleteProduct(id);
-      await load();
+      await loadCatalog(page);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not deactivate product");
     } finally {
@@ -274,44 +356,21 @@ export default function AdminProductsPage() {
               className={`rounded-md border bg-white px-3 py-2 text-sm ${fieldErrors.discountPrice ? "border-red-400" : "border-line"}`}
             />
           </div>
-          <input
-            type="number"
-            min={0}
-            placeholder="Stock"
-            value={form.stock}
-            onChange={(e) => setForm((f) => ({ ...f, stock: digitsOnly(e.target.value) }))}
-            className={`rounded-md border bg-white px-3 py-2 text-sm ${fieldErrors.stock ? "border-red-400" : "border-line"}`}
+          {createVariants.length === 0 && (
+            <input
+              type="number"
+              min={0}
+              placeholder="Stock (product-level)"
+              value={form.stock}
+              onChange={(e) => setForm((f) => ({ ...f, stock: digitsOnly(e.target.value) }))}
+              className={`rounded-md border bg-white px-3 py-2 text-sm ${fieldErrors.stock ? "border-red-400" : "border-line"}`}
+            />
+          )}
+          <ProductVariantEditor
+            variants={createVariants}
+            onChange={setCreateVariants}
+            disabled={submitting}
           />
-          <p className="text-xs font-medium text-ink">Package size (cm) — for shipping</p>
-          <div className="grid grid-cols-3 gap-2">
-            <input
-              type="number"
-              min={0}
-              step="0.1"
-              placeholder="Length (L)"
-              value={form.lengthCm}
-              onChange={(e) => setForm((f) => ({ ...f, lengthCm: decimalOnly(e.target.value) }))}
-              className={`rounded-md border bg-white px-3 py-2 text-sm ${fieldErrors.lengthCm ? "border-red-400" : "border-line"}`}
-            />
-            <input
-              type="number"
-              min={0}
-              step="0.1"
-              placeholder="Breadth (B)"
-              value={form.breadthCm}
-              onChange={(e) => setForm((f) => ({ ...f, breadthCm: decimalOnly(e.target.value) }))}
-              className={`rounded-md border bg-white px-3 py-2 text-sm ${fieldErrors.breadthCm ? "border-red-400" : "border-line"}`}
-            />
-            <input
-              type="number"
-              min={0}
-              step="0.1"
-              placeholder="Height (H)"
-              value={form.heightCm}
-              onChange={(e) => setForm((f) => ({ ...f, heightCm: decimalOnly(e.target.value) }))}
-              className={`rounded-md border bg-white px-3 py-2 text-sm ${fieldErrors.heightCm ? "border-red-400" : "border-line"}`}
-            />
-          </div>
           <input
             placeholder="Tags (comma separated)"
             value={form.tags}
@@ -346,13 +405,63 @@ export default function AdminProductsPage() {
 
       <section className="rounded-lg border border-line bg-cream p-6">
         <h2 className="text-lg font-semibold">Catalog</h2>
-        {loading ? (
+        <form
+          onSubmit={applyCatalogFilters}
+          className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-5"
+        >
+          <input
+            type="search"
+            placeholder="Search products"
+            value={catalogFilters.search}
+            onChange={(e) => setCatalogFilters((f) => ({ ...f, search: e.target.value }))}
+            className="rounded-md border border-line bg-white px-3 py-2 text-sm lg:col-span-2"
+          />
+          <select
+            value={catalogFilters.category}
+            onChange={(e) => setCatalogFilters((f) => ({ ...f, category: e.target.value }))}
+            className="rounded-md border border-line bg-white px-3 py-2 text-sm"
+          >
+            <option value="">All categories</option>
+            {categoryOptions.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.label}
+              </option>
+            ))}
+          </select>
+          <select
+            value={catalogFilters.isActive}
+            onChange={(e) => setCatalogFilters((f) => ({ ...f, isActive: e.target.value }))}
+            className="rounded-md border border-line bg-white px-3 py-2 text-sm"
+          >
+            <option value="">All statuses</option>
+            <option value="true">Active</option>
+            <option value="false">Inactive</option>
+          </select>
+          <select
+            value={catalogFilters.isFeatured}
+            onChange={(e) => setCatalogFilters((f) => ({ ...f, isFeatured: e.target.value }))}
+            className="rounded-md border border-line bg-white px-3 py-2 text-sm"
+          >
+            <option value="">All products</option>
+            <option value="true">Featured only</option>
+          </select>
+          <button
+            type="submit"
+            className="rounded-md border border-line bg-white px-3 py-2 text-sm font-semibold sm:col-span-2 lg:col-span-5"
+          >
+            Apply filters
+          </button>
+        </form>
+        {catalogLoading && products.length === 0 ? (
           <p className="mt-4 text-sm text-ink-soft">Loading…</p>
+        ) : products.length === 0 ? (
+          <p className="mt-4 text-sm text-ink-soft">No products match your filters.</p>
         ) : (
           <div className="mt-4 overflow-x-auto">
-            <table className="w-full min-w-[520px] text-left text-sm">
+            <table className="w-full min-w-[640px] text-left text-sm">
               <thead>
                 <tr className="border-b border-line text-2xs tracking-wide text-ink-faint uppercase">
+                  <th className="py-2 pr-3">Image</th>
                   <th className="py-2 pr-4">Name</th>
                   <th className="py-2 pr-4">Price</th>
                   <th className="py-2 pr-4">Stock</th>
@@ -361,16 +470,48 @@ export default function AdminProductsPage() {
                 </tr>
               </thead>
               <tbody>
-                {products.map((p) => (
+                {products.map((p) => {
+                  const thumb = p.images?.[0]?.url;
+                  const variantStock = p.variants?.reduce((sum, v) => sum + (v.stock ?? 0), 0);
+                  const stock =
+                    p.variants && p.variants.length > 0
+                      ? variantStock
+                      : p.inventory?.stock ?? 0;
+                  return (
                   <tr key={p._id} className="border-b border-line/70">
+                    <td className="py-3 pr-3">
+                      <div className="relative size-12 overflow-hidden rounded-md border border-line/80 bg-white">
+                        {thumb ? (
+                          <Image
+                            src={thumb}
+                            alt=""
+                            fill
+                            className="object-cover"
+                            sizes="48px"
+                          />
+                        ) : (
+                          <span className="flex size-full items-center justify-center text-2xs text-ink-faint">
+                            —
+                          </span>
+                        )}
+                      </div>
+                    </td>
                     <td className="py-3 pr-4">
                       <p className="font-medium">{p.name}</p>
                       <p className="text-xs text-ink-soft">{p.category?.name}</p>
+                      {p.isFeatured && (
+                        <span className="text-2xs font-semibold text-accent-700">Featured</span>
+                      )}
+                      {(p.variants?.length ?? 0) > 0 && (
+                        <p className="text-2xs text-ink-faint">
+                          {p.variants!.length} variant{p.variants!.length === 1 ? "" : "s"}
+                        </p>
+                      )}
                     </td>
                     <td className="py-3 pr-4">
                       {formatInr(p.discountPrice ?? p.price)}
                     </td>
-                    <td className="py-3 pr-4">{p.inventory?.stock ?? 0}</td>
+                    <td className="py-3 pr-4">{stock ?? 0}</td>
                     <td className="py-3 pr-4">
                       {p.isActive ? (
                         <span className="text-accent-700">Active</span>
@@ -379,24 +520,93 @@ export default function AdminProductsPage() {
                       )}
                     </td>
                     <td className="py-3 text-right">
-                      {p.isActive && (
+                      <div className="flex flex-col items-end gap-1">
                         <button
                           type="button"
-                          onClick={() => deactivate(p._id)}
-                          disabled={deactivatingId === p._id}
+                          onClick={() => startEditProduct(p._id)}
+                          disabled={editLoading}
                           className="text-xs font-semibold text-accent-700 underline disabled:opacity-50"
                         >
-                          {deactivatingId === p._id ? "…" : "Deactivate"}
+                          Variants
                         </button>
-                      )}
+                        {p.isActive && (
+                          <button
+                            type="button"
+                            onClick={() => deactivate(p._id)}
+                            disabled={deactivatingId === p._id}
+                            className="text-xs font-semibold text-red-700 underline disabled:opacity-50"
+                          >
+                            {deactivatingId === p._id ? "…" : "Deactivate"}
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
         )}
+        {totalPages > 1 && (
+          <div className="mt-4 flex items-center justify-between text-sm">
+            <button
+              type="button"
+              disabled={page <= 1 || catalogLoading}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              className="rounded border border-line px-3 py-1 disabled:opacity-40"
+            >
+              Previous
+            </button>
+            <span className="text-ink-soft">
+              Page {page} of {totalPages}
+            </span>
+            <button
+              type="button"
+              disabled={page >= totalPages || catalogLoading}
+              onClick={() => setPage((p) => p + 1)}
+              className="rounded border border-line px-3 py-1 disabled:opacity-40"
+            >
+              Next
+            </button>
+          </div>
+        )}
       </section>
+
+      {editingProduct && (
+        <section className="rounded-lg border border-line bg-cream p-6 xl:col-span-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-lg font-semibold">
+              Variants — {editingProduct.name}
+            </h2>
+            <button
+              type="button"
+              onClick={() => {
+                setEditingProduct(null);
+                setEditVariants([]);
+              }}
+              className="text-sm text-ink-soft underline"
+            >
+              Close
+            </button>
+          </div>
+          <div className="mt-4">
+            <ProductVariantEditor
+              variants={editVariants}
+              onChange={setEditVariants}
+              disabled={editSaving}
+            />
+          </div>
+          <button
+            type="button"
+            disabled={editSaving}
+            onClick={() => void saveEditVariants()}
+            className="mt-4 rounded-md gradient-accent px-4 py-2 text-sm font-bold text-cream disabled:opacity-60"
+          >
+            {editSaving ? "Saving…" : "Save variants"}
+          </button>
+        </section>
+      )}
     </div>
   );
 }

@@ -172,6 +172,7 @@ const listAdminProducts = async (query) => {
   }
   if (query.isActive === 'true') filter.isActive = true;
   if (query.isActive === 'false') filter.isActive = false;
+  if (query.isFeatured === 'true' || query.featured === 'true') filter.isFeatured = true;
 
   const [items, total] = await Promise.all([
     Product.find(filter)
@@ -355,6 +356,18 @@ const updateProduct = async (id, payload, files = []) => {
   return product;
 };
 
+const getAdminProductById = async (id) => {
+  const product = await Product.findById(id)
+    .populate('category', 'name slug')
+    .populate('subCategory', 'name slug');
+  if (!product) {
+    const error = new Error('Product not found');
+    error.statusCode = 404;
+    throw error;
+  }
+  return product;
+};
+
 const softDeleteProduct = async (id) => {
   const product = await Product.findById(id);
   if (!product) {
@@ -390,6 +403,7 @@ const recalculateProductRating = async (productId) => {
 module.exports = {
   listProducts,
   listAdminProducts,
+  getAdminProductById,
   getProductById,
   getProductBySlug,
   getFeaturedProducts,
