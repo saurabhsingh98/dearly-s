@@ -67,7 +67,7 @@ export default async function ProductListPage(props: PageProps<"/products">) {
     <>
       {/* PLP hero */}
       <section className="gradient-surface border-b border-line">
-        <div className="shell py-[6vh]">
+        <div className="shell py-[4vh] sm:py-[6vh]">
           <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-2 text-2xs text-ink-faint">
             <Link href="/" className="hover:text-ink">
               Home
@@ -92,20 +92,20 @@ export default async function ProductListPage(props: PageProps<"/products">) {
             )}
           </nav>
 
-          <h1 className="mt-4 text-5xl font-semibold tracking-[-0.03em] text-balance">
+          <h1 className="mt-3 text-3xl font-semibold tracking-[-0.03em] text-balance sm:text-4xl lg:text-5xl">
             {heading}
           </h1>
-          <p className="mt-3 max-w-[56ch] text-base text-ink-soft text-pretty">{blurb}</p>
+          <p className="mt-3 max-w-[56ch] text-sm text-ink-soft text-pretty sm:text-base">{blurb}</p>
 
           {/* occasion quick rail */}
-          <div className="no-scrollbar mt-7 flex gap-2 overflow-x-auto pb-1">
+          <div className="no-scrollbar mt-5 flex gap-2 overflow-x-auto pb-1 sm:mt-7">
             {occasions.map((o) => {
               const active = query.occasion === o.slug;
               return (
                 <Link
                   key={o.id}
                   href={active ? "/products" : `/products?occasion=${o.slug}`}
-                  className={`flex shrink-0 items-center gap-2 rounded-xs border px-5 py-3 text-xs font-semibold transition ${
+                  className={`flex shrink-0 items-center gap-2 rounded-xs border px-4 py-2.5 text-xs font-semibold transition sm:px-5 sm:py-3 ${
                     active
                       ? "border-transparent bg-ink text-cream"
                       : "border-ink/12 bg-white/80 backdrop-blur hover:border-ink/40"
@@ -127,13 +127,13 @@ export default async function ProductListPage(props: PageProps<"/products">) {
           </Suspense>
         </aside>
 
-        <section>
+        <section className="min-w-0">
           <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-ink-soft">
               <span className="font-bold text-ink">{results.length}</span>{" "}
               {results.length === 1 ? "gift" : "gifts"}
             </p>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <Suspense fallback={null}>
                 <MobileFilters resultCount={results.length} />
               </Suspense>
@@ -171,7 +171,7 @@ export default async function ProductListPage(props: PageProps<"/products">) {
               </Link>
             </div>
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-3">
               {results.map((p, i) => (
                 <Reveal key={p.id} delay={Math.min(i, 8) * 50}>
                   <ProductCard product={p} />

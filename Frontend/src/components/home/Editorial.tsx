@@ -11,25 +11,25 @@ import { useTaxonomy } from "@/components/taxonomy/TaxonomyProvider";
 
 /** Promises as one continuous line, divided by rules rather than boxed. */
 export function UspLine() {
+  // Doubled so the -50% translate loops seamlessly. Spacing sits on the item
+  // rather than a flex gap, which would leave the two halves unequal.
+  const strip = [...uspStrip, ...uspStrip];
   return (
-    <section className="border-y border-line">
-      <div className="shell flex flex-wrap items-stretch justify-between">
-        {uspStrip.map((u, i) => (
-          <Reveal
-            key={u.title}
-            delay={i * 70}
-            y={2}
-            className={`flex flex-1 items-center gap-3 py-6 ${
-              i > 0 ? "sm:border-l sm:border-line sm:pl-6" : ""
-            } ${i < uspStrip.length - 1 ? "pr-6" : ""}`}
-          >
-            <Motif name={u.motif} className="size-5 shrink-0 text-accent-600" />
-            <span className="min-w-0">
-              <span className="block text-xs font-semibold tracking-tight">{u.title}</span>
-              <span className="block text-2xs text-ink-faint">{u.copy}</span>
+    <section className="group border-y border-line">
+      <div className="flex overflow-hidden">
+        <div className="animate-marquee flex w-max group-hover:[animation-play-state:paused]">
+          {strip.map((u, i) => (
+            <span
+              key={`${u.title}-${i}`}
+              aria-hidden={i >= uspStrip.length}
+              className="flex shrink-0 items-center gap-3 border-r border-line px-8 py-5 whitespace-nowrap"
+            >
+              <Motif name={u.motif} className="size-5 shrink-0 text-accent-600" />
+              <span className="text-xs font-semibold tracking-tight">{u.title}</span>
+              <span className="text-2xs text-ink-faint">{u.copy}</span>
             </span>
-          </Reveal>
-        ))}
+          ))}
+        </div>
       </div>
     </section>
   );
@@ -56,7 +56,7 @@ export function OccasionIndex() {
   }, [active]);
 
   return (
-    <section className="gradient-ink py-[9vh] text-cream">
+    <section className="gradient-ink py-[5.5vh] sm:py-[9vh] text-cream">
       <div className="shell">
         <Reveal className="flex flex-wrap items-end justify-between gap-4 pb-8">
           <div>
@@ -83,23 +83,23 @@ export function OccasionIndex() {
                 onPointerEnter={() => setActive(i)}
                 onFocus={() => setActive(i)}
                 onBlur={() => setActive(null)}
-                className="group flex items-baseline gap-6 border-t border-cream/15 py-6 transition-colors duration-500 ease-out-expo hover:text-accent-300 sm:gap-10"
+                className="group flex items-baseline gap-3 border-t border-cream/15 py-6 transition-colors duration-500 ease-out-expo hover:text-accent-300 sm:gap-6 lg:gap-10"
               >
-                <span className="font-display w-8 shrink-0 text-sm text-cream/35 transition-colors duration-500 group-hover:text-accent-300">
+                <span className="font-display w-6 shrink-0 text-sm text-cream/35 transition-colors duration-500 group-hover:text-accent-300 sm:w-8">
                   {String(i + 1).padStart(2, "0")}
                 </span>
-                <span className="font-display text-3xl transition-transform duration-500 ease-out-expo group-hover:translate-x-2 sm:text-4xl">
+                <span className="font-display min-w-0 flex-1 text-xl transition-transform duration-500 ease-out-expo group-hover:translate-x-2 sm:text-3xl lg:text-4xl">
                   {o.name}
                 </span>
                 <span className="ml-auto hidden max-w-[34ch] text-right text-xs text-cream/50 md:block">
                   {o.note}
                 </span>
-                <span className="w-24 shrink-0 text-right text-2xs tracking-[0.14em] text-cream/40 uppercase">
+                <span className="shrink-0 text-right text-2xs tracking-[0.14em] whitespace-nowrap text-cream/40 uppercase sm:w-24">
                   {o.window}
                 </span>
                 <Motif
                   name={o.motif}
-                  className="size-5 shrink-0 opacity-0 transition-opacity duration-500 group-hover:opacity-100"
+                  className="hidden size-5 shrink-0 opacity-0 transition-opacity duration-500 group-hover:opacity-100 sm:block"
                 />
               </Link>
             </Reveal>
@@ -146,7 +146,7 @@ export function VoiceQuote() {
   const t = testimonials[index];
 
   return (
-    <section className="py-[10vh]">
+    <section className="py-[6vh] sm:py-[10vh]">
       <div className="shell-tight text-center">
         <Reveal>
           <Stars rating={t.rating} className="justify-center text-lg" />
@@ -186,7 +186,7 @@ export function VoiceQuote() {
 export function StatementBand() {
   const line = "We buy from twenty-six workshops, pack every box by hand in Bengaluru, and write the note ourselves. Nothing here is drop-shipped, and nothing arrives looking like it was bought in a hurry.";
   return (
-    <section className="py-[10vh]">
+    <section className="py-[6vh] sm:py-[10vh]">
       <div className="shell">
         <Reveal y={3}>
           <p className="font-display max-w-[54ch] text-xl leading-[1.5] text-pretty sm:text-2xl">
@@ -210,7 +210,7 @@ export function StatementBand() {
 /** Journal as a reading list: hairline rows, thumbnail on hover. */
 export function JournalList() {
   return (
-    <section className="shell py-[9vh]">
+    <section className="shell py-[5.5vh] sm:py-[9vh]">
       <Reveal className="flex flex-wrap items-end justify-between gap-4 pb-6">
         <div>
           <span className="eyebrow">Journal</span>

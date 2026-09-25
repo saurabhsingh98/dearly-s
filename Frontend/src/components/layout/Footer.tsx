@@ -85,7 +85,7 @@ export function Footer() {
             <span>·</span>
             <span>{brand.supportPhone}</span>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <span className="text-2xs text-cream/50">Secured by</span>
             {["UPI", "Visa", "Mastercard", "Razorpay"].map((m) => (
               <span

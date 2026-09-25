@@ -60,7 +60,7 @@ export function ProductDetail({ product }: { product: Product }) {
     <>
       <div className="shell grid gap-[4vh] py-[4vh] lg:grid-cols-[1.05fr_0.95fr] lg:gap-[3vw]">
         {/* gallery */}
-        <div className="lg:sticky lg:top-[12vh] lg:self-start">
+        <div className="min-w-0 lg:sticky lg:top-[12vh] lg:self-start">
           <div className="relative overflow-hidden rounded-xl border border-line">
             {photos.length ? (
               <Image
@@ -76,16 +76,16 @@ export function ProductDetail({ product }: { product: Product }) {
               <ProductArt
                 art={views[active]}
                 className="aspect-square w-full transition-all duration-500"
-                motifClass="size-[20vh]"
+                motifClass="size-[14vh] sm:size-[20vh]"
               />
             )}
             {off > 0 && (
-              <span className="absolute top-5 left-5 rounded-xs bg-ink px-4 py-2 text-2xs font-bold text-white">
+              <span className="absolute top-3 left-3 rounded-xs bg-ink px-3 py-1.5 text-2xs font-bold text-white sm:top-5 sm:left-5 sm:px-4 sm:py-2">
                 −{off}% today
               </span>
             )}
             {product.badge && (
-              <span className="absolute top-5 right-5 rounded-xs bg-white/95 px-4 py-2 text-2xs font-bold tracking-wider uppercase">
+              <span className="absolute top-3 right-3 rounded-xs bg-white/95 px-3 py-1.5 text-2xs font-bold tracking-wider uppercase sm:top-5 sm:right-5 sm:px-4 sm:py-2">
                 {product.badge}
               </span>
             )}
@@ -127,7 +127,7 @@ export function ProductDetail({ product }: { product: Product }) {
         </div>
 
         {/* buy box */}
-        <div>
+        <div className="min-w-0">
           <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-2 text-2xs text-ink-faint">
             <Link href="/products" className="hover:text-ink">Shop</Link>
             <span aria-hidden>/</span>
@@ -138,10 +138,10 @@ export function ProductDetail({ product }: { product: Product }) {
             <span className="text-ink">{subcategory?.name}</span>
           </nav>
 
-          <h1 className="mt-4 text-4xl font-semibold tracking-[-0.03em] text-balance">
+          <h1 className="mt-3 text-2xl font-semibold tracking-[-0.03em] text-balance sm:text-3xl lg:text-4xl">
             {product.name}
           </h1>
-          <p className="mt-2 text-lg text-ink-soft">{product.tagline}</p>
+          <p className="mt-2 text-sm text-ink-soft sm:text-lg">{product.tagline}</p>
 
           <div className="mt-4 flex flex-wrap items-center gap-4">
             <span className="inline-flex items-center gap-2">
@@ -155,9 +155,9 @@ export function ProductDetail({ product }: { product: Product }) {
           </div>
 
           <div className="mt-6 flex flex-wrap items-end gap-3">
-            <span className="text-4xl font-semibold tracking-tight">{formatMoney(unitPrice)}</span>
+            <span className="text-2xl font-semibold tracking-tight sm:text-3xl lg:text-4xl">{formatMoney(unitPrice)}</span>
             {product.compareAt && (
-              <span className="text-lg text-ink-faint line-through">
+              <span className="text-base text-ink-faint line-through sm:text-lg">
                 {formatMoney(product.compareAt)}
               </span>
             )}
@@ -177,7 +177,7 @@ export function ProductDetail({ product }: { product: Product }) {
                     type="button"
                     onClick={() => setVariantId(v.id)}
                     aria-pressed={variantId === v.id}
-                    className={`flex items-center gap-3 rounded-xs border px-5 py-3 text-sm font-semibold transition ${
+                    className={`flex items-center gap-3 rounded-xs border px-4 py-2.5 text-sm font-semibold transition sm:px-5 sm:py-3 ${
                       variantId === v.id
                         ? "border-ink bg-ink text-cream"
                         : "border-ink/15 bg-white hover:border-ink/40"
@@ -201,7 +201,7 @@ export function ProductDetail({ product }: { product: Product }) {
 
           {/* personalisation */}
           {product.personalisable && (
-            <div className="mt-8 rounded-md border border-accent-400/40 bg-accent-100/50 p-5">
+            <div className="mt-8 rounded-md border border-accent-400/40 bg-accent-100/50 p-4 sm:p-5">
               <label htmlFor="gift-note" className="flex items-center gap-2 text-sm font-bold">
                 Add a free gift note or engraving
               </label>
@@ -229,20 +229,20 @@ export function ProductDetail({ product }: { product: Product }) {
             <button
               type="button"
               onClick={handleAdd}
-              className="flex-1 rounded-xs border-2 border-ink bg-white px-8 py-4 text-sm font-bold transition hover:gradient-accent hover:text-cream active:scale-[0.98]"
+              className="flex-1 rounded-xs border-2 border-ink bg-white px-6 py-3.5 text-sm font-bold transition hover:gradient-accent hover:text-cream active:scale-[0.98] sm:px-8 sm:py-4"
             >
               {added ? "Added to bag" : "Add to bag"}
             </button>
             <button
               type="button"
               onClick={handleBuyNow}
-              className="flex-1 rounded-xs gradient-accent px-8 py-4 text-sm font-bold text-white shadow-soft transition hover:brightness-110 active:scale-[0.98]"
+              className="flex-1 rounded-xs gradient-accent px-6 py-3.5 text-sm font-bold text-white shadow-soft transition hover:brightness-110 active:scale-[0.98] sm:px-8 sm:py-4"
             >
               Buy now →
             </button>
           </div>
 
-          <ul className="mt-6 grid gap-3 sm:grid-cols-2">
+          <ul className="mt-6 grid grid-cols-2 gap-3">
             {[
               ["truck", `Delivered in ${product.deliveryEta}`],
               ["returns", "14-day easy returns"],
@@ -250,7 +250,7 @@ export function ProductDetail({ product }: { product: Product }) {
               ["ribbon", "Gift wrapped at no charge"],
             ].map(([icon, text]) => (
               <li key={text} className="flex items-center gap-3 text-xs text-ink-soft">
-                <span className="grid size-9 shrink-0 place-items-center border border-line text-ink-soft">
+                <span className="grid size-8 shrink-0 place-items-center border border-line text-ink-soft sm:size-9">
                   <Motif name={icon} className="size-4" />
                 </span>
                 {text}
@@ -289,7 +289,7 @@ export function ProductDetail({ product }: { product: Product }) {
                   type="button"
                   onClick={() => setTab(t)}
                   aria-pressed={tab === t}
-                  className={`shrink-0 rounded-xs px-5 py-2 text-xs font-bold transition ${
+                  className={`shrink-0 rounded-xs px-4 py-2 text-xs font-bold transition sm:px-5 ${
                     tab === t ? "bg-ink text-cream" : "text-ink-soft hover:bg-white"
                   }`}
                 >
@@ -356,14 +356,14 @@ export function ProductDetail({ product }: { product: Product }) {
           <button
             type="button"
             onClick={handleAdd}
-            className="rounded-xs border-2 border-ink px-5 py-3 text-xs font-bold"
+            className="shrink-0 rounded-xs border-2 border-ink px-4 py-3 text-xs font-bold"
           >
             Add
           </button>
           <button
             type="button"
             onClick={handleBuyNow}
-            className="rounded-xs gradient-accent px-6 py-3 text-xs font-bold text-white"
+            className="shrink-0 rounded-xs gradient-accent px-5 py-3 text-xs font-bold text-white"
           >
             Buy now
           </button>

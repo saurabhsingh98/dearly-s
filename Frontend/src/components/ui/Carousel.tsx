@@ -10,7 +10,7 @@ import { ArrowLeft, ArrowRight } from "lucide-react";
  */
 export function Carousel({
   children,
-  itemClass = "w-[76vw] sm:w-[42vw] lg:w-[27vw] xl:w-[21vw]",
+  itemClass = "w-[42vw] sm:w-[36vw] lg:w-[27vw] xl:w-[21vw]",
   className = "",
   ariaLabel,
 }: {
@@ -72,7 +72,7 @@ export function Carousel({
             style={{ width: `${Math.max(progress * 100, 8)}%` }}
           />
         </div>
-        <div className="flex gap-2">
+        <div className="hidden gap-2 sm:flex">
           <button
             type="button"
             onClick={() => nudge(-1)}

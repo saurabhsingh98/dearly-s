@@ -33,7 +33,7 @@ export function Hero({ banners = [] }: { banners?: Banner[] }) {
 
   return (
     <section
-      className="relative isolate h-[84vh] min-h-[30rem] w-full overflow-hidden"
+      className="relative isolate h-[35vh] min-h-[13rem] w-full overflow-hidden sm:mx-[4vw] sm:mt-[2vh] sm:h-[50vh] sm:min-h-[17rem] sm:w-auto sm:rounded-[1.25rem] sm:border sm:border-line"
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
       aria-roledescription="carousel"
@@ -73,13 +73,13 @@ export function Hero({ banners = [] }: { banners?: Banner[] }) {
         className="absolute inset-0 z-10"
       />
 
-      <div className="pointer-events-none relative z-20 flex h-full items-center">
+      <div className="pointer-events-none relative z-20 flex h-full items-center pb-[5vh]">
         <div
-          className={`shell ${slide.align === "center" ? "text-center" : "text-left"}`}
+          className={`shell sm:px-[3vw] ${slide.align === "center" ? "text-center" : "text-left"}`}
         >
           <div
             key={slide.id}
-            className={`animate-rise max-w-[54ch] ${
+            className={`animate-rise max-w-[46ch] ${
               slide.align === "center" ? "mx-auto" : ""
             }`}
           >
@@ -87,22 +87,22 @@ export function Hero({ banners = [] }: { banners?: Banner[] }) {
               {slide.eyebrow}
             </p>
 
-            <h1 className="mt-6 text-6xl font-normal text-cream text-balance">
+            <h1 className="mt-3 text-2xl font-normal text-cream text-balance sm:mt-4 sm:text-3xl lg:text-4xl">
               {slide.title}{" "}
               <em className="text-accent-300 not-italic">{slide.accent}</em>
             </h1>
 
-            <p className="mt-6 max-w-[48ch] text-base text-cream/80 text-pretty">
+            <p className="mt-3 hidden max-w-[44ch] text-sm text-cream/80 text-pretty sm:mt-4 sm:block">
               {slide.copy}
             </p>
 
             <div
-              className={`mt-10 flex flex-wrap items-center gap-x-8 gap-y-4 ${
+              className={`mt-5 flex flex-wrap items-center gap-x-6 gap-y-3 sm:mt-6 ${
                 slide.align === "center" ? "justify-center" : ""
               }`}
             >
               {/* rendered as spans: the whole banner is already an anchor */}
-              <span className="gradient-accent inline-flex items-center gap-3 px-9 py-4 text-2xs font-semibold tracking-[0.18em] text-cream uppercase">
+              <span className="gradient-accent inline-flex items-center gap-3 px-6 py-3 text-2xs font-semibold tracking-[0.18em] text-cream uppercase sm:px-7">
                 {slide.cta.label}
                 <span aria-hidden><ArrowRight className="size-4" strokeWidth={1.5} aria-hidden /></span>
               </span>
@@ -120,8 +120,8 @@ export function Hero({ banners = [] }: { banners?: Banner[] }) {
       </div>
 
       {/* controls sit above the banner link */}
-      <div className="shell pointer-events-none absolute inset-x-0 bottom-0 z-30 flex items-end justify-between gap-6 pb-[4vh]">
-        <div className="pointer-events-auto flex flex-1 items-center gap-3">
+      <div className="shell pointer-events-none absolute inset-x-0 bottom-0 z-30 flex items-center justify-between gap-4 pb-[3vh] sm:px-[3vw]">
+        <div className="pointer-events-auto flex items-center">
           {heroSlides.map((s, i) => (
             <button
               key={s.id}
@@ -129,36 +129,31 @@ export function Hero({ banners = [] }: { banners?: Banner[] }) {
               onClick={() => go(i)}
               aria-label={`Go to slide ${i + 1}`}
               aria-current={i === index}
-              className="h-[0.35vh] min-h-[3px] max-w-[8rem] flex-1 overflow-hidden bg-cream/30"
+              className="grid place-items-center p-1.5"
             >
+              {/* the dot stays small; the padding above carries the tap target */}
               <span
-                className="block h-full bg-cream transition-[width] ease-linear"
-                style={{
-                  width: i === index ? "100%" : "0%",
-                  transitionDuration: i === index && !paused ? `${AUTOPLAY_MS}ms` : "400ms",
-                }}
+                className={`size-2 rounded-full transition-colors duration-500 ease-out-expo ${
+                  i === index ? "bg-cream" : "bg-cream/40"
+                }`}
               />
             </button>
           ))}
-          <span className="font-display ml-2 text-sm text-cream">
-            {String(index + 1).padStart(2, "0")}
-            <span className="text-cream/50"> / {String(heroSlides.length).padStart(2, "0")}</span>
-          </span>
         </div>
 
-        <div className="pointer-events-auto flex gap-3">
+        <div className="pointer-events-auto flex gap-2">
           <button
             type="button"
             onClick={() => go(index - 1)}
             aria-label="Previous slide"
-            className="grid size-11 place-items-center border border-cream/40 text-sm text-cream transition-colors duration-500 ease-out-expo hover:bg-cream hover:text-ink"
-          ><ArrowLeft className="size-4" strokeWidth={1.5} aria-hidden /></button>
+            className="grid size-7 place-items-center rounded-full border border-cream/40 text-cream transition-colors duration-500 ease-out-expo hover:bg-cream hover:text-ink sm:size-8"
+          ><ArrowLeft className="size-3.5" strokeWidth={1.5} aria-hidden /></button>
           <button
             type="button"
             onClick={() => go(index + 1)}
             aria-label="Next slide"
-            className="grid size-11 place-items-center border border-cream/40 text-sm text-cream transition-colors duration-500 ease-out-expo hover:bg-cream hover:text-ink"
-          ><ArrowRight className="size-4" strokeWidth={1.5} aria-hidden /></button>
+            className="grid size-7 place-items-center rounded-full border border-cream/40 text-cream transition-colors duration-500 ease-out-expo hover:bg-cream hover:text-ink sm:size-8"
+          ><ArrowRight className="size-3.5" strokeWidth={1.5} aria-hidden /></button>
         </div>
       </div>
     </section>
